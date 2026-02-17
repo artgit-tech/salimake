@@ -1,25 +1,23 @@
 import { useState } from 'react';
-import { getWorkoutLogs, deleteWorkoutLog } from '../storage';
-import type { WorkoutLog } from '../types';
+import { useData } from '../contexts/DataContext';
 import { format, parseISO } from 'date-fns';
 import { fi } from 'date-fns/locale';
 
 export default function WorkoutHistory() {
-  const [logs, setLogs] = useState<WorkoutLog[]>(() =>
-    getWorkoutLogs().sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
-  );
+  const { workoutLogs, deleteWorkoutLog, loading } = useData();
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const handleDelete = (id: string) => {
+  if (loading) {
+    return <div className="loading-spinner" />;
+  }
+
+  const logs = [...workoutLogs].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Haluatko varmasti poistaa tämän treenin?')) return;
-    deleteWorkoutLog(id);
-    setLogs(
-      getWorkoutLogs().sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-      )
-    );
+    await deleteWorkoutLog(id);
   };
 
   return (

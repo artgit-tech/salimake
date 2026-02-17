@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
-import { getProgram, saveProgram } from '../storage';
+import { useData } from '../contexts/DataContext';
 import type { Program, WorkoutDay, Exercise } from '../types';
 
 function createExercise(): Exercise {
@@ -26,9 +26,14 @@ function createProgram(): Program {
 export default function ProgramEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const existing = id ? getProgram(id) : undefined;
+  const { programs, saveProgram, loading } = useData();
+  const existing = id ? programs.find((p) => p.id === id) : undefined;
 
   const [program, setProgram] = useState<Program>(existing ?? createProgram());
+
+  if (loading) {
+    return <div className="loading-spinner" />;
+  }
 
   const updateProgram = (partial: Partial<Program>) => {
     setProgram((prev) => ({ ...prev, ...partial }));
@@ -86,7 +91,7 @@ export default function ProgramEditor() {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!program.name.trim()) {
       alert('Anna ohjelmalle nimi');
       return;
@@ -105,7 +110,7 @@ export default function ProgramEditor() {
       }
     }
 
-    saveProgram({ ...program, updatedAt: new Date().toISOString() });
+    await saveProgram({ ...program, updatedAt: new Date().toISOString() });
     navigate('/programs');
   };
 

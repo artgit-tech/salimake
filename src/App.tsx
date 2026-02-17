@@ -1,4 +1,6 @@
 import { HashRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import { DataProvider } from './contexts/DataContext';
 import Dashboard from './pages/Dashboard';
 import Programs from './pages/Programs';
 import ProgramEditor from './pages/ProgramEditor';
@@ -6,10 +8,27 @@ import WorkoutLogger from './pages/WorkoutLogger';
 import WeightTracker from './pages/WeightTracker';
 import Measurements from './pages/Measurements';
 import WorkoutHistory from './pages/WorkoutHistory';
+import Login from './pages/Login';
 
-function App() {
+function AppContent() {
+  const { user, loading, logout } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="app-layout">
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+          <div className="loading-spinner" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
   return (
-    <HashRouter>
+    <DataProvider>
       <div className="app-layout">
         <header className="app-header">
           <div className="header-inner">
@@ -24,6 +43,13 @@ function App() {
               <NavLink to="/history">Historia</NavLink>
               <NavLink to="/weight">Paino</NavLink>
               <NavLink to="/measurements">Mitat</NavLink>
+              <button
+                className="btn-logout"
+                onClick={logout}
+                title={user.displayName || 'Kirjaudu ulos'}
+              >
+                Ulos
+              </button>
             </nav>
           </div>
         </header>
@@ -40,8 +66,14 @@ function App() {
           </Routes>
         </main>
       </div>
-    </HashRouter>
+    </DataProvider>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <HashRouter>
+      <AppContent />
+    </HashRouter>
+  );
+}

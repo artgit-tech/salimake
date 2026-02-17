@@ -1,17 +1,18 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getPrograms, deleteProgram } from '../storage';
-import type { Program } from '../types';
+import { useData } from '../contexts/DataContext';
 import { format, parseISO } from 'date-fns';
 import { fi } from 'date-fns/locale';
 
 export default function Programs() {
-  const [programs, setPrograms] = useState<Program[]>(getPrograms);
+  const { programs, deleteProgram, loading } = useData();
 
-  const handleDelete = (id: string, name: string) => {
+  if (loading) {
+    return <div className="loading-spinner" />;
+  }
+
+  const handleDelete = async (id: string, name: string) => {
     if (window.confirm(`Haluatko varmasti poistaa ohjelman "${name}"?`)) {
-      deleteProgram(id);
-      setPrograms(getPrograms());
+      await deleteProgram(id);
     }
   };
 

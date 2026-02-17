@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
-import { getProgram, saveWorkoutLog, getWorkoutLogs } from '../storage';
+import { useData } from '../contexts/DataContext';
 import type { WorkoutLog, LoggedExercise, LoggedSet } from '../types';
 
 export default function WorkoutLogger() {
   const { programId, dayId } = useParams<{ programId: string; dayId: string }>();
   const navigate = useNavigate();
-  const program = programId ? getProgram(programId) : undefined;
+  const { programs, workoutLogs, saveWorkoutLog, loading } = useData();
+  const program = programs.find((p) => p.id === programId);
   const day = program?.days.find((d) => d.id === dayId);
   const startTime = useRef(Date.now());
 
@@ -17,8 +18,7 @@ export default function WorkoutLogger() {
   useEffect(() => {
     if (!day) return;
 
-    // Look for previous workout for this day to pre-fill weights
-    const prevLogs = getWorkoutLogs()
+    const prevLogs = workoutLogs
       .filter((l) => l.programId === programId && l.dayId === dayId)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const prev = prevLogs[0];
@@ -33,7 +33,11 @@ export default function WorkoutLogger() {
     });
 
     setExercises(initial);
-  }, [day, programId, dayId]);
+  }, [day, programId, dayId, workoutLogs]);
+
+  if (loading) {
+    return <div className="loading-spinner" />;
+  }
 
   if (!program || !day) {
     return (
@@ -80,7 +84,7 @@ export default function WorkoutLogger() {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const durationMinutes = Math.round((Date.now() - startTime.current) / 60000);
 
     const log: WorkoutLog = {
@@ -94,7 +98,7 @@ export default function WorkoutLogger() {
       notes: notes || undefined,
     };
 
-    saveWorkoutLog(log);
+    await saveWorkoutLog(log);
     navigate('/history');
   };
 

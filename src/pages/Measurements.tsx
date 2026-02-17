@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { v4 as uuid } from 'uuid';
-import { getMeasurements, saveMeasurement, deleteMeasurement } from '../storage';
+import { useData } from '../contexts/DataContext';
 import type { MeasurementEntry } from '../types';
 import { format, parseISO } from 'date-fns';
 import { fi } from 'date-fns/locale';
@@ -26,26 +26,22 @@ function getField(entry: MeasurementEntry, key: MeasurementField): number | unde
 }
 
 export default function Measurements() {
-  const [entries, setEntries] = useState<MeasurementEntry[]>(() =>
-    getMeasurements().sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
-  );
+  const { measurements, saveMeasurement, deleteMeasurement, loading } = useData();
   const [showForm, setShowForm] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const refresh = () => {
-    setEntries(
-      getMeasurements().sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-      )
-    );
-  };
+  if (loading) {
+    return <div className="loading-spinner" />;
+  }
 
-  const handleSave = () => {
+  const entries = [...measurements].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  const handleSave = async () => {
     const entry: MeasurementEntry = {
       id: uuid(),
       date,
@@ -66,17 +62,15 @@ export default function Measurements() {
       return;
     }
 
-    saveMeasurement(entry);
+    await saveMeasurement(entry);
     setValues({});
     setNotes('');
     setShowForm(false);
-    refresh();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Haluatko poistaa tämän merkinnän?')) return;
-    deleteMeasurement(id);
-    refresh();
+    await deleteMeasurement(id);
   };
 
   const latest = entries[0];

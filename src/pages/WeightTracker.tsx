@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { v4 as uuid } from 'uuid';
-import { getWeightEntries, saveWeightEntry, deleteWeightEntry } from '../storage';
-import type { WeightEntry } from '../types';
+import { useData } from '../contexts/DataContext';
 import { format, parseISO } from 'date-fns';
 import { fi } from 'date-fns/locale';
 import {
@@ -15,30 +14,26 @@ import {
 } from 'recharts';
 
 export default function WeightTracker() {
-  const [entries, setEntries] = useState<WeightEntry[]>(() =>
-    getWeightEntries().sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    )
-  );
+  const { weightEntries, saveWeightEntry, deleteWeightEntry, loading } = useData();
   const [weight, setWeight] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
 
-  const refresh = () => {
-    setEntries(
-      getWeightEntries().sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-      )
-    );
-  };
+  if (loading) {
+    return <div className="loading-spinner" />;
+  }
 
-  const handleAdd = () => {
+  const entries = [...weightEntries].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  const handleAdd = async () => {
     const w = parseFloat(weight);
     if (!w || w <= 0) {
       alert('Syötä kelvollinen paino');
       return;
     }
-    saveWeightEntry({
+    await saveWeightEntry({
       id: uuid(),
       date,
       weight: w,
@@ -46,13 +41,11 @@ export default function WeightTracker() {
     });
     setWeight('');
     setNotes('');
-    refresh();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Haluatko poistaa tämän merkinnän?')) return;
-    deleteWeightEntry(id);
-    refresh();
+    await deleteWeightEntry(id);
   };
 
   const chartData = entries.map((e) => ({

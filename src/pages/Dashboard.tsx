@@ -1,12 +1,16 @@
 import { Link } from 'react-router-dom';
-import { getPrograms, getWorkoutLogs, getWeightEntries } from '../storage';
+import { useData } from '../contexts/DataContext';
 import { format, parseISO, isThisWeek } from 'date-fns';
 import { fi } from 'date-fns/locale';
 
 export default function Dashboard() {
-  const programs = getPrograms();
-  const logs = getWorkoutLogs();
-  const weights = getWeightEntries().sort(
+  const { programs, workoutLogs: logs, weightEntries, loading } = useData();
+
+  if (loading) {
+    return <div className="loading-spinner" />;
+  }
+
+  const weights = [...weightEntries].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
