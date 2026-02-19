@@ -21,6 +21,7 @@ import type {
   WorkoutLog,
   WeightEntry,
   MeasurementEntry,
+  ExerciseTemplate,
 } from '../types';
 
 interface DataContextType {
@@ -28,6 +29,7 @@ interface DataContextType {
   workoutLogs: WorkoutLog[];
   weightEntries: WeightEntry[];
   measurements: MeasurementEntry[];
+  exerciseTemplates: ExerciseTemplate[];
   loading: boolean;
   saveProgram: (program: Program) => Promise<void>;
   deleteProgram: (id: string) => Promise<void>;
@@ -37,6 +39,8 @@ interface DataContextType {
   deleteWeightEntry: (id: string) => Promise<void>;
   saveMeasurement: (entry: MeasurementEntry) => Promise<void>;
   deleteMeasurement: (id: string) => Promise<void>;
+  saveExerciseTemplate: (template: ExerciseTemplate) => Promise<void>;
+  deleteExerciseTemplate: (id: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType>(null!);
@@ -58,6 +62,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([]);
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [measurements, setMeasurements] = useState<MeasurementEntry[]>([]);
+  const [exerciseTemplates, setExerciseTemplates] = useState<ExerciseTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const migrated = useRef(false);
 
@@ -103,7 +108,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     batch.commit().then(() => {
-      // Clear localStorage after successful migration
       Object.values(LS_KEYS).forEach((k) => localStorage.removeItem(k));
     });
   }, [user, loading, programs, workoutLogs, weightEntries, measurements]);
@@ -115,6 +119,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setWorkoutLogs([]);
       setWeightEntries([]);
       setMeasurements([]);
+      setExerciseTemplates([]);
       setLoading(false);
       return;
     }
@@ -122,8 +127,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     const uid = user.uid;
     let loaded = 0;
+    const total = 5;
     const checkDone = () => {
-      if (++loaded >= 4) setLoading(false);
+      if (++loaded >= total) setLoading(false);
     };
 
     const unsub1 = onSnapshot(
@@ -168,11 +174,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    const unsub5 = onSnapshot(
+      collection(db, 'users', uid, 'exerciseTemplates'),
+      (snap) => {
+        setExerciseTemplates(
+          snap.docs.map(
+            (d) => ({ ...d.data(), id: d.id }) as ExerciseTemplate
+          )
+        );
+        checkDone();
+      }
+    );
+
     return () => {
       unsub1();
       unsub2();
       unsub3();
       unsub4();
+      unsub5();
     };
   }, [user]);
 
@@ -211,6 +230,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await deleteDoc(userDoc('measurements', id));
   };
 
+  const saveExerciseTemplate = async (template: ExerciseTemplate) => {
+    await setDoc(userDoc('exerciseTemplates', template.id), template);
+  };
+
+  const deleteExerciseTemplate = async (id: string) => {
+    await deleteDoc(userDoc('exerciseTemplates', id));
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -218,6 +245,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         workoutLogs,
         weightEntries,
         measurements,
+        exerciseTemplates,
         loading,
         saveProgram,
         deleteProgram,
@@ -227,6 +255,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         deleteWeightEntry,
         saveMeasurement,
         deleteMeasurement,
+        saveExerciseTemplate,
+        deleteExerciseTemplate,
       }}
     >
       {children}

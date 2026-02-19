@@ -4,6 +4,9 @@ export interface AlternativeExercise {
   id: string;
   name: string;
   equipment?: string;
+  sets?: number;
+  reps?: string;
+  restSeconds?: number;
 }
 
 export interface Exercise {
@@ -14,7 +17,8 @@ export interface Exercise {
   reps: string; // e.g. "8-12" or "10"
   restSeconds: number;
   notes?: string;
-  alternatives?: AlternativeExercise[]; // substitute exercises if primary is unavailable
+  links?: string[]; // e.g. YouTube tutorial URLs
+  alternatives?: AlternativeExercise[];
 }
 
 export interface WorkoutDay {
@@ -32,6 +36,21 @@ export interface Program {
   updatedAt: string;
 }
 
+// === Exercise template library ===
+
+export interface ExerciseTemplate {
+  id: string;
+  name: string;
+  equipment?: string;
+  sets: number;
+  reps: string;
+  restSeconds: number;
+  notes?: string;
+  links?: string[];
+  alternatives?: AlternativeExercise[];
+  category?: string; // e.g. "Rinta", "Selkä", "Jalat", "Olkapää"
+}
+
 // === Workout logging types ===
 
 export interface LoggedSet {
@@ -45,9 +64,9 @@ export interface LoggedExercise {
   equipment?: string;
   sets: LoggedSet[];
   notes?: string;
-  orderIndex: number; // actual order performed in this session
-  wasSubstitute?: boolean; // true if this was a substitute for the planned exercise
-  originalExerciseId?: string; // the planned exercise this substituted for
+  orderIndex: number;
+  wasSubstitute?: boolean;
+  originalExerciseId?: string;
 }
 
 export interface WorkoutLog {

@@ -10,6 +10,9 @@ interface ExerciseOption {
   id: string;
   name: string;
   equipment?: string;
+  sets?: number;
+  reps?: string;
+  restSeconds?: number;
   isAlternative: boolean;
   originalExerciseId?: string;
 }
@@ -79,6 +82,9 @@ export default function WorkoutLogger() {
         id: templateEx.id,
         name: templateEx.name,
         equipment: templateEx.equipment,
+        sets: templateEx.sets,
+        reps: templateEx.reps,
+        restSeconds: templateEx.restSeconds,
         isAlternative: false,
       },
     ];
@@ -88,6 +94,9 @@ export default function WorkoutLogger() {
           id: alt.id,
           name: alt.name,
           equipment: alt.equipment,
+          sets: alt.sets ?? templateEx.sets,
+          reps: alt.reps ?? templateEx.reps,
+          restSeconds: alt.restSeconds ?? templateEx.restSeconds,
           isAlternative: true,
           originalExerciseId: templateEx.id,
         });
@@ -141,7 +150,7 @@ export default function WorkoutLogger() {
     });
   };
 
-  // Switch to an alternative exercise
+  // Switch to an alternative exercise - use the alternative's own parameters
   const switchExercise = (exIdx: number, option: ExerciseOption) => {
     setExercises((prev) => {
       const copy = [...prev];
@@ -152,12 +161,11 @@ export default function WorkoutLogger() {
         (pe) => pe.exerciseName === option.name
       );
 
-      const templateEx = day.exercises.find((e) => e.id === current.exerciseId) ||
-        day.exercises.find((e) => e.id === option.originalExerciseId);
-      const targetSets = templateEx?.sets ?? current.sets.length;
+      const targetSets = option.sets ?? current.sets.length;
+      const targetReps = parseInt(option.reps || '') || 10;
 
       const sets: LoggedSet[] = Array.from({ length: targetSets }, (_, i) => ({
-        reps: prevEx?.sets[i]?.reps ?? current.sets[i]?.reps ?? 10,
+        reps: prevEx?.sets[i]?.reps ?? current.sets[i]?.reps ?? targetReps,
         weight: prevEx?.sets[i]?.weight ?? 0,
       }));
 
@@ -180,7 +188,6 @@ export default function WorkoutLogger() {
     setExercises((prev) => {
       const copy = [...prev];
       [copy[exIdx], copy[newIdx]] = [copy[newIdx], copy[exIdx]];
-      // Update orderIndex
       return copy.map((ex, i) => ({ ...ex, orderIndex: i }));
     });
   };
@@ -194,12 +201,12 @@ export default function WorkoutLogger() {
     });
   };
 
-  // Get previous exercise data
   const getPreviousExercise = (exerciseName: string) => {
     if (!prevLog) return null;
     return prevLog.exercises.find((pe) => pe.exerciseName === exerciseName) || null;
   };
 
+  // Save workout - no mandatory fields besides having exercises
   const handleSave = async () => {
     const durationMinutes = Math.round((Date.now() - startTime.current) / 60000);
 
@@ -209,7 +216,11 @@ export default function WorkoutLogger() {
       dayId: day.id,
       dayName: `${program.name} — ${day.name}`,
       date: new Date().toISOString().split('T')[0],
-      exercises: exercises.map((ex, i) => ({ ...ex, orderIndex: i })),
+      exercises: exercises.map((ex, i) => ({
+        ...ex,
+        orderIndex: i,
+        notes: ex.notes || undefined,
+      })),
       durationMinutes,
       notes: notes || undefined,
     };
@@ -221,20 +232,20 @@ export default function WorkoutLogger() {
   return (
     <div>
       <h1 className="page-title">
-        {program.name} — {day.name}
+        {day.name}
       </h1>
+      <p className="text-muted text-sm mb-2">{program.name}</p>
 
       {prevLog && (
-        <div className="card" style={{ borderLeft: '3px solid var(--primary)' }}>
+        <div className="prev-session-banner">
           <span className="text-muted text-sm">
-            Edellinen treeni: {format(parseISO(prevLog.date), 'EEEE d.M.yyyy', { locale: fi })}
+            Edellinen: {format(parseISO(prevLog.date), 'EEEE d.M.', { locale: fi })}
             {prevLog.durationMinutes ? ` · ${prevLog.durationMinutes} min` : ''}
           </span>
         </div>
       )}
 
       {exercises.map((ex, exIdx) => {
-        // Find the template exercise (either by current exerciseId or originalExerciseId)
         const templateEx =
           day.exercises.find((e) => e.id === ex.exerciseId) ||
           day.exercises.find((e) => e.id === ex.originalExerciseId);
@@ -242,98 +253,70 @@ export default function WorkoutLogger() {
         const hasAlternatives = options.length > 1;
         const prevEx = getPreviousExercise(ex.exerciseName);
 
+        // Get the current exercise option for display of its specific parameters
+        const currentOption = options.find((o) => o.name === ex.exerciseName);
+
+        // Find links from the template exercise
+        const exerciseLinks = templateEx?.links;
+
         return (
           <div key={`${ex.exerciseId}-${exIdx}`} className="card">
-            {/* Exercise header with move buttons */}
+            {/* Exercise header */}
             <div className="exercise-logger-header">
               <div className="flex gap-sm" style={{ alignItems: 'center' }}>
                 <div className="move-buttons">
-                  <button
-                    className="btn-icon"
-                    onClick={() => moveExercise(exIdx, -1)}
-                    disabled={exIdx === 0}
-                    title="Siirrä ylös"
-                  >
-                    ▲
-                  </button>
-                  <button
-                    className="btn-icon"
-                    onClick={() => moveExercise(exIdx, 1)}
-                    disabled={exIdx === exercises.length - 1}
-                    title="Siirrä alas"
-                  >
-                    ▼
-                  </button>
+                  <button className="btn-icon" onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0}>▲</button>
+                  <button className="btn-icon" onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === exercises.length - 1}>▼</button>
                 </div>
-                <span className="exercise-number">{exIdx + 1}.</span>
                 <div>
-                  <h3 style={{ margin: 0 }}>
-                    {ex.exerciseName}
+                  <div className="flex gap-sm" style={{ alignItems: 'center' }}>
+                    <span className="exercise-number">{exIdx + 1}.</span>
+                    <strong>{ex.exerciseName}</strong>
                     {ex.wasSubstitute && (
-                      <span className="badge badge-warning" style={{ marginLeft: '0.5rem' }}>
-                        korvaava
-                      </span>
+                      <span className="badge badge-warning">korvaava</span>
                     )}
-                  </h3>
+                  </div>
                   {ex.equipment && (
                     <span className="text-muted text-sm">{ex.equipment}</span>
                   )}
                 </div>
               </div>
-              <div className="flex gap-sm" style={{ alignItems: 'center' }}>
-                {templateEx && (
-                  <span className="badge">
-                    {templateEx.sets}×{templateEx.reps} · lepo {templateEx.restSeconds}s
-                  </span>
-                )}
-              </div>
+              <span className="badge">
+                {currentOption?.sets ?? templateEx?.sets ?? '?'}×{currentOption?.reps ?? templateEx?.reps ?? '?'}
+              </span>
             </div>
 
-            {/* Switch exercise dropdown */}
+            {/* Alternative exercise selector */}
             {hasAlternatives && (
-              <div className="mt-1 mb-1">
-                <select
-                  className="exercise-select"
-                  value={ex.exerciseName}
-                  onChange={(e) => {
-                    const option = options.find((o) => o.name === e.target.value);
-                    if (option) switchExercise(exIdx, option);
-                  }}
-                >
-                  {options.map((opt) => (
-                    <option key={opt.id} value={opt.name}>
-                      {opt.name}
-                      {opt.equipment ? ` (${opt.equipment})` : ''}
-                      {opt.isAlternative ? ' — vaihtoehto' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select
+                className="exercise-select mb-1"
+                value={ex.exerciseName}
+                onChange={(e) => {
+                  const option = options.find((o) => o.name === e.target.value);
+                  if (option) switchExercise(exIdx, option);
+                }}
+              >
+                {options.map((opt) => (
+                  <option key={opt.id} value={opt.name}>
+                    {opt.name}{opt.equipment ? ` (${opt.equipment})` : ''}{opt.isAlternative ? ' — vaihtoehto' : ''}
+                  </option>
+                ))}
+              </select>
             )}
 
-            {/* Previous workout data toggle */}
+            {/* Previous data */}
             {prevEx && (
               <div className="mb-1">
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => togglePrevious(exIdx)}
-                >
-                  {showPrevious.has(exIdx) ? '▲ Piilota' : '▼ Näytä'} edellinen
+                <button className="btn btn-ghost btn-sm" onClick={() => togglePrevious(exIdx)}>
+                  {showPrevious.has(exIdx) ? '▲ Piilota' : '▼ Edellinen'}
                 </button>
                 {showPrevious.has(exIdx) && (
                   <div className="previous-data">
-                    <span className="text-muted text-sm">
-                      {format(parseISO(prevLog!.date), 'd.M.yyyy', { locale: fi })}:
-                    </span>
-                    <span className="text-sm" style={{ marginLeft: '0.5rem' }}>
-                      {prevEx.sets
-                        .map((s) => `${s.weight}kg×${s.reps}`)
-                        .join(' / ')}
+                    <span className="text-sm">
+                      {prevEx.sets.map((s) => `${s.weight}kg×${s.reps}`).join(' / ')}
                     </span>
                     {prevEx.notes && (
-                      <span className="text-muted text-sm" style={{ marginLeft: '0.5rem' }}>
-                        — {prevEx.notes}
-                      </span>
+                      <span className="text-muted text-sm"> — {prevEx.notes}</span>
                     )}
                   </div>
                 )}
@@ -341,9 +324,9 @@ export default function WorkoutLogger() {
             )}
 
             {/* Set logging */}
-            <div className="set-row" style={{ marginBottom: '0.25rem' }}>
+            <div className="set-row set-row-header">
               <span className="set-num">#</span>
-              <span className="text-muted text-sm">Paino (kg)</span>
+              <span className="text-muted text-sm">kg</span>
               <span className="text-muted text-sm">Toistot</span>
               <span></span>
             </div>
@@ -353,62 +336,71 @@ export default function WorkoutLogger() {
                 <span className="set-num">{setIdx + 1}</span>
                 <input
                   type="number"
+                  inputMode="decimal"
                   value={set.weight || ''}
                   min={0}
                   step={0.5}
                   placeholder="0"
                   onChange={(e) =>
-                    updateSet(exIdx, setIdx, {
-                      weight: parseFloat(e.target.value) || 0,
-                    })
+                    updateSet(exIdx, setIdx, { weight: parseFloat(e.target.value) || 0 })
                   }
                 />
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={set.reps || ''}
                   min={0}
                   placeholder="0"
                   onChange={(e) =>
-                    updateSet(exIdx, setIdx, {
-                      reps: parseInt(e.target.value) || 0,
-                    })
+                    updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0 })
                   }
                 />
                 <button
                   className="btn btn-danger btn-sm"
                   style={{ padding: '0.25rem' }}
                   onClick={() => removeSet(exIdx, setIdx)}
-                  title="Poista sarja"
                 >
                   ×
                 </button>
               </div>
             ))}
 
-            <div className="flex gap-sm mt-1">
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => addSet(exIdx)}
-              >
-                + Sarja
-              </button>
-            </div>
+            <button className="btn btn-ghost btn-sm mt-1" onClick={() => addSet(exIdx)}>
+              + Sarja
+            </button>
 
             {/* Per-exercise notes */}
-            <div className="form-group mt-1" style={{ marginBottom: 0 }}>
-              <input
-                type="text"
-                value={ex.notes || ''}
-                onChange={(e) => updateExerciseNotes(exIdx, e.target.value)}
-                placeholder="Muistiinpano tähän liikkeeseen..."
-                className="exercise-note-input"
-              />
-            </div>
+            <input
+              type="text"
+              value={ex.notes || ''}
+              onChange={(e) => updateExerciseNotes(exIdx, e.target.value)}
+              placeholder="Muistiinpano..."
+              className="exercise-note-input mt-1"
+            />
 
-            {/* Template exercise note hint */}
-            {templateEx?.notes && (
-              <div className="text-muted text-sm mt-1" style={{ fontStyle: 'italic' }}>
-                {templateEx.notes}
+            {/* Template notes + links */}
+            {(templateEx?.notes || (exerciseLinks && exerciseLinks.length > 0)) && (
+              <div className="mt-1">
+                {templateEx?.notes && (
+                  <div className="text-muted text-sm" style={{ fontStyle: 'italic' }}>
+                    {templateEx.notes}
+                  </div>
+                )}
+                {exerciseLinks && exerciseLinks.length > 0 && (
+                  <div className="exercise-links mt-1">
+                    {exerciseLinks.map((link, idx) => (
+                      <a
+                        key={idx}
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="exercise-link-chip"
+                      >
+                        {getLinkLabel(link)}
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -416,8 +408,8 @@ export default function WorkoutLogger() {
       })}
 
       <div className="card">
-        <div className="form-group">
-          <label>Treenin muistiinpanot (valinnainen)</label>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Treenin muistiinpanot</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -426,8 +418,8 @@ export default function WorkoutLogger() {
         </div>
       </div>
 
-      <div className="flex gap-sm">
-        <button className="btn btn-primary" onClick={handleSave}>
+      <div className="flex gap-sm mb-2">
+        <button className="btn btn-primary btn-lg" onClick={handleSave}>
           Tallenna treeni
         </button>
         <button className="btn btn-ghost" onClick={() => navigate(-1)}>
@@ -436,4 +428,15 @@ export default function WorkoutLogger() {
       </div>
     </div>
   );
+}
+
+function getLinkLabel(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.replace('www.', '');
+    if (hostname.includes('youtube') || hostname.includes('youtu.be')) return 'YouTube';
+    if (hostname.includes('instagram')) return 'Instagram';
+    return hostname.split('.')[0];
+  } catch {
+    return 'Linkki';
+  }
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { format, parseISO } from 'date-fns';
 import { fi } from 'date-fns/locale';
+import type { WorkoutLog } from '../types';
 
 export default function WorkoutHistory() {
   const { workoutLogs, deleteWorkoutLog, loading } = useData();
@@ -16,7 +17,6 @@ export default function WorkoutHistory() {
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
-  // Get unique day names for filtering
   const dayNames = [...new Set(logs.map((l) => l.dayName))];
 
   const filteredLogs = filter
@@ -28,45 +28,93 @@ export default function WorkoutHistory() {
     await deleteWorkoutLog(id);
   };
 
-  // Format sets compactly like "40-35-35" from the Google Sheet style
   const formatSetsCompact = (sets: { weight: number; reps: number }[]) => {
     const weights = sets.map((s) => s.weight);
     const reps = sets.map((s) => s.reps);
-
     const allSameWeight = weights.every((w) => w === weights[0]);
     const allSameReps = reps.every((r) => r === reps[0]);
-
     if (allSameWeight && allSameReps) {
-      return `${sets.length}×${weights[0]}kg×${reps[0]}`;
+      return `${sets.length}x${weights[0]}kg x${reps[0]}`;
     }
-
-    return sets.map((s) => `${s.weight}kg×${s.reps}`).join(' / ');
+    return sets.map((s) => `${s.weight}kg x${s.reps}`).join(' / ');
   };
 
-  // Find previous log for comparison
-  const findPreviousLog = (log: typeof logs[0]) => {
+  const findPreviousLog = (log: WorkoutLog) => {
     const sameDayLogs = logs.filter(
       (l) => l.dayName === log.dayName && l.date < log.date
     );
     return sameDayLogs[0] || null;
   };
 
+  // --- Export to Google Sheets CSV ---
+  const exportToCSV = () => {
+    const logsToExport = filteredLogs;
+    if (logsToExport.length === 0) return;
+
+    const rows: string[][] = [
+      ['Päivämäärä', 'Ohjelma', 'Liike', 'Väline', 'Järjestys', 'Sarja', 'Paino (kg)', 'Toistot', 'Korvaava', 'Muistiinpano (liike)', 'Muistiinpano (treeni)', 'Kesto (min)'],
+    ];
+
+    for (const log of logsToExport) {
+      for (const ex of log.exercises) {
+        for (let si = 0; si < ex.sets.length; si++) {
+          const set = ex.sets[si];
+          rows.push([
+            log.date,
+            log.dayName,
+            ex.exerciseName,
+            ex.equipment || '',
+            String((ex.orderIndex ?? 0) + 1),
+            String(si + 1),
+            String(set.weight),
+            String(set.reps),
+            ex.wasSubstitute ? 'Kyllä' : '',
+            si === 0 ? (ex.notes || '') : '',
+            si === 0 ? (log.notes || '') : '',
+            si === 0 ? String(log.durationMinutes || '') : '',
+          ]);
+        }
+      }
+    }
+
+    const csvContent = rows
+      .map((row) =>
+        row.map((cell) => {
+          if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+            return `"${cell.replace(/"/g, '""')}"`;
+          }
+          return cell;
+        }).join(',')
+      )
+      .join('\n');
+
+    // BOM for Excel UTF-8
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `salimake-treenihistoria-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
-      <h1 className="page-title">Treenihistoria</h1>
+      <div className="flex-between mb-2">
+        <h1 className="page-title" style={{ marginBottom: 0 }}>Treenihistoria</h1>
+        {filteredLogs.length > 0 && (
+          <button className="btn btn-ghost btn-sm" onClick={exportToCSV}>
+            Lataa CSV
+          </button>
+        )}
+      </div>
 
-      {/* Filter by day name */}
       {dayNames.length > 1 && (
         <div className="mb-2">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
+          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="">Kaikki treenit</option>
             {dayNames.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
+              <option key={name} value={name}>{name}</option>
             ))}
           </select>
         </div>
@@ -88,20 +136,16 @@ export default function WorkoutHistory() {
                 onClick={() => setExpanded(expanded === log.id ? null : log.id)}
               >
                 <div>
-                  <h3 style={{ marginBottom: '0.25rem' }}>{log.dayName}</h3>
+                  <h3 style={{ marginBottom: '0.25rem', fontSize: '0.95rem' }}>{log.dayName}</h3>
                   <span className="text-muted text-sm">
                     {format(parseISO(log.date), 'EEEE d.M.yyyy', { locale: fi })}
                     {log.durationMinutes ? ` · ${log.durationMinutes} min` : ''}
-                    {` · ${log.exercises.length} liikettä`}
                   </span>
                 </div>
-                <div className="flex gap-sm">
+                <div className="flex gap-sm" style={{ alignItems: 'center' }}>
                   <button
                     className="btn btn-danger btn-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(log.id);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(log.id); }}
                   >
                     Poista
                   </button>
@@ -109,7 +153,7 @@ export default function WorkoutHistory() {
                 </div>
               </div>
 
-              {/* Compact summary always visible */}
+              {/* Compact summary */}
               {expanded !== log.id && (
                 <div className="mt-1">
                   {log.exercises.map((ex, i) => (
@@ -123,11 +167,10 @@ export default function WorkoutHistory() {
                 </div>
               )}
 
-              {/* Expanded details */}
+              {/* Expanded */}
               {expanded === log.id && (
                 <div className="mt-2">
                   {log.exercises.map((ex, i) => {
-                    // Find same exercise in previous log for comparison
                     const prevEx = prevLog?.exercises.find(
                       (pe) => pe.exerciseName === ex.exerciseName
                     );
@@ -136,64 +179,47 @@ export default function WorkoutHistory() {
                       <div key={i} className="history-exercise">
                         <div className="flex-between" style={{ alignItems: 'flex-start' }}>
                           <div>
-                            <strong>
+                            <strong style={{ fontSize: '0.9rem' }}>
                               {(ex.orderIndex ?? i) + 1}. {ex.exerciseName}
                             </strong>
                             {ex.wasSubstitute && (
-                              <span className="badge badge-warning" style={{ marginLeft: '0.5rem' }}>
-                                korvaava
-                              </span>
+                              <span className="badge badge-warning" style={{ marginLeft: '0.5rem' }}>korvaava</span>
                             )}
                             {ex.equipment && (
-                              <span className="text-muted text-sm" style={{ marginLeft: '0.5rem' }}>
-                                ({ex.equipment})
-                              </span>
+                              <span className="text-muted text-sm" style={{ marginLeft: '0.5rem' }}>({ex.equipment})</span>
                             )}
                           </div>
-                          <span className="text-muted text-sm">
-                            {formatSetsCompact(ex.sets)}
-                          </span>
                         </div>
 
                         <div className="table-wrap mt-1">
                           <table>
                             <thead>
                               <tr>
-                                <th>Sarja</th>
-                                <th>Paino (kg)</th>
+                                <th>#</th>
+                                <th>kg</th>
                                 <th>Toistot</th>
-                                {prevEx && <th className="text-muted">Edellinen</th>}
+                                {prevEx && <th>Edell.</th>}
                               </tr>
                             </thead>
                             <tbody>
                               {ex.sets.map((set, si) => {
                                 const prevSet = prevEx?.sets[si];
-                                const weightDiff = prevSet
-                                  ? set.weight - prevSet.weight
-                                  : 0;
+                                const weightDiff = prevSet ? set.weight - prevSet.weight : 0;
                                 return (
                                   <tr key={si}>
                                     <td>{si + 1}</td>
                                     <td>
                                       {set.weight}
                                       {weightDiff !== 0 && (
-                                        <span
-                                          className={
-                                            weightDiff > 0 ? 'text-success' : 'text-danger'
-                                          }
-                                          style={{ fontSize: '0.75rem', marginLeft: '0.25rem' }}
-                                        >
-                                          {weightDiff > 0 ? '+' : ''}
-                                          {weightDiff}
+                                        <span className={weightDiff > 0 ? 'text-success' : 'text-danger'} style={{ fontSize: '0.7rem', marginLeft: '0.2rem' }}>
+                                          {weightDiff > 0 ? '+' : ''}{weightDiff}
                                         </span>
                                       )}
                                     </td>
                                     <td>{set.reps}</td>
                                     {prevEx && (
                                       <td className="text-muted">
-                                        {prevSet
-                                          ? `${prevSet.weight}kg × ${prevSet.reps}`
-                                          : '—'}
+                                        {prevSet ? `${prevSet.weight} x ${prevSet.reps}` : '—'}
                                       </td>
                                     )}
                                   </tr>
@@ -204,27 +230,23 @@ export default function WorkoutHistory() {
                         </div>
 
                         {ex.notes && (
-                          <p className="text-muted text-sm mt-1">
-                            {ex.notes}
-                          </p>
+                          <p className="text-muted text-sm mt-1">{ex.notes}</p>
                         )}
                       </div>
                     );
                   })}
 
-                  {/* Order comparison with previous */}
                   {prevLog && (
                     <div className="order-comparison mt-2">
                       <span className="text-muted text-sm" style={{ fontWeight: 500 }}>
-                        Järjestysvertailu edelliseen:
+                        Järjestysvertailu:
                       </span>
                       <div className="order-comparison-grid mt-1">
                         <div>
-                          <span className="text-muted text-sm">Tämä kerta</span>
+                          <span className="text-muted text-sm">Tämä</span>
                           {log.exercises.map((ex, i) => (
                             <div key={i} className="text-sm">
-                              {(ex.orderIndex ?? i) + 1}. {ex.exerciseName}
-                              {ex.wasSubstitute ? ' *' : ''}
+                              {(ex.orderIndex ?? i) + 1}. {ex.exerciseName}{ex.wasSubstitute ? ' *' : ''}
                             </div>
                           ))}
                         </div>
@@ -232,8 +254,7 @@ export default function WorkoutHistory() {
                           <span className="text-muted text-sm">Edellinen</span>
                           {prevLog.exercises.map((ex, i) => (
                             <div key={i} className="text-sm">
-                              {(ex.orderIndex ?? i) + 1}. {ex.exerciseName}
-                              {ex.wasSubstitute ? ' *' : ''}
+                              {(ex.orderIndex ?? i) + 1}. {ex.exerciseName}{ex.wasSubstitute ? ' *' : ''}
                             </div>
                           ))}
                         </div>
@@ -243,9 +264,7 @@ export default function WorkoutHistory() {
 
                   {log.notes && (
                     <div className="mt-2" style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-                      <p className="text-muted text-sm">
-                        <strong>Muistiinpanot:</strong> {log.notes}
-                      </p>
+                      <p className="text-muted text-sm"><strong>Muistiinpanot:</strong> {log.notes}</p>
                     </div>
                   )}
                 </div>

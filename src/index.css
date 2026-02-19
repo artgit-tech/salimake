@@ -672,6 +672,90 @@ th {
   color: var(--text);
 }
 
+/* Template picker item */
+.template-picker-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.template-picker-item:hover {
+  background: var(--bg-input);
+  border-color: var(--primary);
+}
+
+/* Alternative exercise full card in template/editor */
+.alt-exercise-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
+.alternative-row-full {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
+/* Exercise links in workout logger */
+.exercise-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.exercise-link-chip {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: var(--primary) !important;
+  text-decoration: none;
+}
+
+.exercise-link-chip:hover {
+  background: var(--border);
+}
+
+/* Link truncation */
+.link-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* Previous session banner */
+.prev-session-banner {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+}
+
+/* Large button variant */
+.btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+/* Set row header */
+.set-row-header {
+  margin-bottom: 0.25rem;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   nav a {

@@ -8,6 +8,7 @@ import WorkoutLogger from './pages/WorkoutLogger';
 import WeightTracker from './pages/WeightTracker';
 import Measurements from './pages/Measurements';
 import WorkoutHistory from './pages/WorkoutHistory';
+import ExerciseTemplates from './pages/ExerciseTemplates';
 import Login from './pages/Login';
 
 function AppContent() {
@@ -40,9 +41,10 @@ function AppContent() {
                 Etusivu
               </NavLink>
               <NavLink to="/programs">Ohjelmat</NavLink>
+              <NavLink to="/templates">Kirjasto</NavLink>
               <NavLink to="/history">Historia</NavLink>
               <NavLink to="/weight">Paino</NavLink>
-              <NavLink to="/measurements">Mitat</NavLink>
+              <NavLink to="/measurements" className="hide-mobile">Mitat</NavLink>
               <button
                 className="btn-logout"
                 onClick={logout}
@@ -59,6 +61,7 @@ function AppContent() {
             <Route path="/programs" element={<Programs />} />
             <Route path="/programs/new" element={<ProgramEditor />} />
             <Route path="/programs/:id" element={<ProgramEditor />} />
+            <Route path="/templates" element={<ExerciseTemplates />} />
             <Route path="/workout/:programId/:dayId" element={<WorkoutLogger />} />
             <Route path="/history" element={<WorkoutHistory />} />
             <Route path="/weight" element={<WeightTracker />} />

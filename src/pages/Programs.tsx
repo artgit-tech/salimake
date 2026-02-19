@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
+import { v4 as uuid } from 'uuid';
 import { useData } from '../contexts/DataContext';
 import { format, parseISO } from 'date-fns';
 import { fi } from 'date-fns/locale';
+import type { Program } from '../types';
 
 export default function Programs() {
-  const { programs, deleteProgram, loading } = useData();
+  const { programs, saveProgram, deleteProgram, loading } = useData();
 
   if (loading) {
     return <div className="loading-spinner" />;
@@ -14,6 +16,27 @@ export default function Programs() {
     if (window.confirm(`Haluatko varmasti poistaa ohjelman "${name}"?`)) {
       await deleteProgram(id);
     }
+  };
+
+  const handleDuplicate = async (program: Program) => {
+    const now = new Date().toISOString();
+    const duplicated: Program = {
+      ...structuredClone(program),
+      id: uuid(),
+      name: `${program.name} (kopio)`,
+      createdAt: now,
+      updatedAt: now,
+      days: program.days.map((day) => ({
+        ...day,
+        id: uuid(),
+        exercises: day.exercises.map((ex) => ({
+          ...ex,
+          id: uuid(),
+          alternatives: ex.alternatives?.map((alt) => ({ ...alt, id: uuid() })),
+        })),
+      })),
+    };
+    await saveProgram(duplicated);
   };
 
   return (
@@ -48,10 +71,17 @@ export default function Programs() {
                   {format(parseISO(p.createdAt), 'd.M.yyyy', { locale: fi })}
                 </span>
               </div>
-              <div className="flex gap-sm">
+              <div className="flex gap-sm flex-wrap" style={{ justifyContent: 'flex-end' }}>
                 <Link to={`/programs/${p.id}`} className="btn btn-ghost btn-sm">
                   Muokkaa
                 </Link>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => handleDuplicate(p)}
+                  title="Kopioi ohjelma"
+                >
+                  Kopioi
+                </button>
                 <button
                   className="btn btn-danger btn-sm"
                   onClick={() => handleDelete(p.id, p.name)}
@@ -67,7 +97,7 @@ export default function Programs() {
                   to={`/workout/${p.id}/${d.id}`}
                   className="btn btn-ghost btn-sm"
                 >
-                  {d.name} ({d.exercises.length} liikettä)
+                  {d.name} ({d.exercises.length})
                 </Link>
               ))}
             </div>
