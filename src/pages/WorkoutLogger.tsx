@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
 import { format, parseISO } from 'date-fns';
@@ -17,6 +17,16 @@ interface ExerciseOption {
   originalExerciseId?: string;
 }
 
+// Key for localStorage draft
+const DRAFT_KEY = (programId: string, dayId: string) =>
+  `salimake_draft_${programId}_${dayId}`;
+
+interface DraftData {
+  exercises: LoggedExercise[];
+  notes: string;
+  savedAt: string;
+}
+
 export default function WorkoutLogger() {
   const { programId, dayId } = useParams<{ programId: string; dayId: string }>();
   const navigate = useNavigate();
@@ -28,9 +38,10 @@ export default function WorkoutLogger() {
   const [exercises, setExercises] = useState<LoggedExercise[]>([]);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [showPrevious, setShowPrevious] = useState<Set<number>>(new Set());
   const [expandedExercises, setExpandedExercises] = useState<Set<number>>(new Set());
+  const [expandedNotes, setExpandedNotes] = useState<string | null>(null);
   const [showTemplateInfo, setShowTemplateInfo] = useState<Set<number>>(new Set());
+  const [draftStatus, setDraftStatus] = useState<string>('');
 
   // Get previous logs for this day (exclude skipped), sorted by date descending
   const prevLogs = workoutLogs
@@ -39,7 +50,23 @@ export default function WorkoutLogger() {
   const prevLog = prevLogs[0];
 
   useEffect(() => {
-    if (!day) return;
+    if (!day || !programId || !dayId) return;
+
+    // Try to restore draft
+    const draftKey = DRAFT_KEY(programId, dayId);
+    const savedDraft = localStorage.getItem(draftKey);
+    if (savedDraft) {
+      try {
+        const draft: DraftData = JSON.parse(savedDraft);
+        if (draft.exercises.length > 0) {
+          setExercises(draft.exercises);
+          setNotes(draft.notes || '');
+          setDraftStatus('Luonnos palautettu');
+          setTimeout(() => setDraftStatus(''), 2000);
+          return;
+        }
+      } catch { /* ignore bad draft */ }
+    }
 
     const initial: LoggedExercise[] = day.exercises.map((ex, idx) => {
       const prevEx = prevLog?.exercises.find(
@@ -62,6 +89,32 @@ export default function WorkoutLogger() {
 
     setExercises(initial);
   }, [day, programId, dayId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save draft to localStorage on every change
+  const saveDraft = useCallback(() => {
+    if (!programId || !dayId || exercises.length === 0) return;
+    const draft: DraftData = {
+      exercises,
+      notes,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(DRAFT_KEY(programId, dayId), JSON.stringify(draft));
+    setDraftStatus('Tallennettu');
+    setTimeout(() => setDraftStatus(''), 1500);
+  }, [exercises, notes, programId, dayId]);
+
+  // Debounced auto-save: save 1s after last change
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (exercises.length === 0) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveDraft();
+    }, 1000);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [exercises, notes, saveDraft]);
 
   if (loading) {
     return <div className="loading-spinner" />;
@@ -159,7 +212,6 @@ export default function WorkoutLogger() {
       const copy = [...prev];
       const current = copy[exIdx];
 
-      // Find previous data for the selected exercise
       const prevEx = prevLog?.exercises.find(
         (pe) => pe.exerciseName === option.name
       );
@@ -184,36 +236,6 @@ export default function WorkoutLogger() {
     });
   };
 
-  // Move exercise in the current workout order
-  const moveExercise = (exIdx: number, direction: -1 | 1) => {
-    const newIdx = exIdx + direction;
-    if (newIdx < 0 || newIdx >= exercises.length) return;
-    setExercises((prev) => {
-      const copy = [...prev];
-      [copy[exIdx], copy[newIdx]] = [copy[newIdx], copy[exIdx]];
-      return copy.map((ex, i) => ({ ...ex, orderIndex: i }));
-    });
-    // Update expanded state to follow the moved exercise
-    setExpandedExercises((prev) => {
-      const next = new Set<number>();
-      for (const idx of prev) {
-        if (idx === exIdx) next.add(newIdx);
-        else if (idx === newIdx) next.add(exIdx);
-        else next.add(idx);
-      }
-      return next;
-    });
-  };
-
-  const togglePrevious = (exIdx: number) => {
-    setShowPrevious((prev) => {
-      const next = new Set(prev);
-      if (next.has(exIdx)) next.delete(exIdx);
-      else next.add(exIdx);
-      return next;
-    });
-  };
-
   const toggleExercise = (exIdx: number) => {
     setExpandedExercises((prev) => {
       const next = new Set(prev);
@@ -232,9 +254,38 @@ export default function WorkoutLogger() {
     });
   };
 
-  const getPreviousExercise = (exerciseName: string) => {
-    if (!prevLog) return null;
-    return prevLog.exercises.find((pe) => pe.exerciseName === exerciseName) || null;
+  // Get last 6 results for a specific exercise (by name) across all previous logs
+  const getRecentHistory = (exerciseName: string, exerciseId: string) => {
+    const results: {
+      date: string;
+      sets: LoggedSet[];
+      notes?: string;
+      wasSubstitute?: boolean;
+      exerciseName: string;
+      workoutNotes?: string;
+    }[] = [];
+
+    for (const log of prevLogs) {
+      if (results.length >= 6) break;
+      // Find this exercise OR any substitute that was used in its place
+      const loggedEx = log.exercises.find(
+        (pe) =>
+          pe.exerciseName === exerciseName ||
+          pe.exerciseId === exerciseId ||
+          pe.originalExerciseId === exerciseId
+      );
+      if (loggedEx) {
+        results.push({
+          date: log.date,
+          sets: loggedEx.sets,
+          notes: loggedEx.notes,
+          wasSubstitute: loggedEx.wasSubstitute,
+          exerciseName: loggedEx.exerciseName,
+          workoutNotes: log.notes,
+        });
+      }
+    }
+    return results;
   };
 
   // Save workout
@@ -260,6 +311,10 @@ export default function WorkoutLogger() {
       };
 
       await saveWorkoutLog(log);
+      // Clear draft on successful save
+      if (programId && dayId) {
+        localStorage.removeItem(DRAFT_KEY(programId, dayId));
+      }
       navigate('/history');
     } catch (err) {
       console.error('Tallennus epäonnistui:', err);
@@ -287,6 +342,9 @@ export default function WorkoutLogger() {
       };
 
       await saveWorkoutLog(log);
+      if (programId && dayId) {
+        localStorage.removeItem(DRAFT_KEY(programId, dayId));
+      }
       navigate('/history');
     } catch (err) {
       console.error('Skipan tallennus epäonnistui:', err);
@@ -306,13 +364,18 @@ export default function WorkoutLogger() {
           </h1>
           <p className="text-muted text-sm">{program.name}</p>
         </div>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => navigate(`/programs/${programId}`)}
-          title="Muokkaa ohjelmaa"
-        >
-          Muokkaa
-        </button>
+        <div className="flex gap-sm" style={{ alignItems: 'center' }}>
+          {draftStatus && (
+            <span className="text-sm draft-status">{draftStatus}</span>
+          )}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => navigate(`/programs/${programId}`)}
+            title="Muokkaa ohjelmaa"
+          >
+            Muokkaa
+          </button>
+        </div>
       </div>
 
       {prevLog && (
@@ -330,7 +393,6 @@ export default function WorkoutLogger() {
           day.exercises.find((e) => e.id === ex.originalExerciseId);
         const options = templateEx ? getExerciseOptions(templateEx) : [];
         const hasAlternatives = options.length > 1;
-        const prevEx = getPreviousExercise(ex.exerciseName);
         const isExpanded = expandedExercises.has(exIdx);
 
         // Get the current exercise option for display of its specific parameters
@@ -339,6 +401,9 @@ export default function WorkoutLogger() {
         // Find links from the template exercise
         const exerciseLinks = templateEx?.links;
         const hasTemplateInfo = !!(templateEx?.notes || (exerciseLinks && exerciseLinks.length > 0));
+
+        // Get last 6 results for this exercise
+        const recentHistory = getRecentHistory(ex.exerciseName, ex.exerciseId);
 
         return (
           <div key={`${ex.exerciseId}-${exIdx}`} className="card">
@@ -379,18 +444,10 @@ export default function WorkoutLogger() {
             {/* Expanded content */}
             {isExpanded && (
               <>
-                {/* Move buttons */}
-                <div className="flex gap-sm mb-1 mt-1">
-                  <div className="move-buttons" style={{ flexDirection: 'row', gap: '0.5rem' }}>
-                    <button className="btn-icon" onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0} title="Siirrä ylös">▲</button>
-                    <button className="btn-icon" onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === exercises.length - 1} title="Siirrä alas">▼</button>
-                  </div>
-                </div>
-
                 {/* Alternative exercise selector */}
                 {hasAlternatives && (
                   <select
-                    className="exercise-select mb-1"
+                    className="exercise-select mb-1 mt-1"
                     value={ex.exerciseName}
                     onChange={(e) => {
                       const option = options.find((o) => o.name === e.target.value);
@@ -405,22 +462,58 @@ export default function WorkoutLogger() {
                   </select>
                 )}
 
-                {/* Previous data */}
-                {prevEx && (
-                  <div className="mb-1">
-                    <button className="btn btn-ghost btn-sm" onClick={() => togglePrevious(exIdx)}>
-                      {showPrevious.has(exIdx) ? '▲ Piilota' : '▼ Edellinen'}
-                    </button>
-                    {showPrevious.has(exIdx) && (
-                      <div className="previous-data">
-                        <span className="text-sm">
-                          {prevEx.sets.map((s) => `${s.weight}kg×${s.reps}`).join(' / ')}
-                        </span>
-                        {prevEx.notes && (
-                          <span className="text-muted text-sm"> — {prevEx.notes}</span>
-                        )}
-                      </div>
-                    )}
+                {/* Recent history - last 6 results */}
+                {recentHistory.length > 0 && (
+                  <div className="recent-history mt-1 mb-1">
+                    <span className="text-sm text-muted" style={{ fontWeight: 500, display: 'block', marginBottom: '0.35rem' }}>
+                      Viimeisimmät tulokset
+                    </span>
+                    {recentHistory.map((entry, hIdx) => {
+                      const noteKey = `${ex.exerciseId}-${entry.date}`;
+                      const hasNotes = !!(entry.notes || entry.workoutNotes);
+                      const isNoteExpanded = expandedNotes === noteKey;
+                      const isSubstitute = entry.wasSubstitute || entry.exerciseName !== ex.exerciseName;
+
+                      return (
+                        <div key={hIdx} className="recent-history-row">
+                          <div className="recent-history-line">
+                            <span className="text-sm text-muted" style={{ minWidth: '3.5rem' }}>
+                              {format(parseISO(entry.date), 'd.M.', { locale: fi })}
+                            </span>
+                            <span className="text-sm" style={{ flex: 1 }}>
+                              {isSubstitute && (
+                                <span className="badge badge-warning badge-xs">{entry.exerciseName}</span>
+                              )}
+                              {entry.sets.map((s, si) => (
+                                <span key={si}>
+                                  {si > 0 && ' / '}
+                                  {s.weight}kg×{s.reps}
+                                </span>
+                              ))}
+                            </span>
+                            {hasNotes && (
+                              <button
+                                className="note-info-btn"
+                                onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
+                                title="Muistiinpanot"
+                              >
+                                {isNoteExpanded ? '✕' : 'i'}
+                              </button>
+                            )}
+                          </div>
+                          {isNoteExpanded && hasNotes && (
+                            <div className="recent-history-notes">
+                              {entry.notes && (
+                                <span className="text-sm">Liike: {entry.notes}</span>
+                              )}
+                              {entry.workoutNotes && (
+                                <span className="text-sm">Treeni: {entry.workoutNotes}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -470,14 +563,15 @@ export default function WorkoutLogger() {
                   + Sarja
                 </button>
 
-                {/* Per-exercise notes */}
-                <input
-                  type="text"
-                  value={ex.notes || ''}
-                  onChange={(e) => updateExerciseNotes(exIdx, e.target.value)}
-                  placeholder="Muistiinpano..."
-                  className="exercise-note-input mt-1"
-                />
+                {/* Per-exercise notes - more prominent */}
+                <div className="exercise-note-box mt-1">
+                  <input
+                    type="text"
+                    value={ex.notes || ''}
+                    onChange={(e) => updateExerciseNotes(exIdx, e.target.value)}
+                    placeholder="Muistiinpano tähän liikkeeseen..."
+                  />
+                </div>
 
                 {/* Template notes + links behind sub-toggle */}
                 {hasTemplateInfo && (

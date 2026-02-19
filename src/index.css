@@ -464,18 +464,102 @@ th {
   border-left: 2px solid var(--primary);
 }
 
-/* Exercise note input (lighter styling) */
-.exercise-note-input {
-  background: transparent !important;
-  border-color: transparent !important;
-  padding-left: 0 !important;
-  font-size: 0.8rem !important;
-  color: var(--text-muted) !important;
+/* Exercise note box (prominent) */
+.exercise-note-box {
+  border-left: 3px solid var(--warning);
+  padding-left: 0.5rem;
 }
 
-.exercise-note-input:focus {
-  border-color: var(--border) !important;
-  background: var(--bg-input) !important;
+.exercise-note-box input {
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  font-size: 0.85rem !important;
+}
+
+.exercise-note-box input:focus {
+  border-color: var(--warning) !important;
+}
+
+.exercise-note-box input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* Recent history section */
+.recent-history {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+}
+
+.recent-history-row {
+  border-bottom: 1px solid var(--border);
+}
+
+.recent-history-row:last-child {
+  border-bottom: none;
+}
+
+.recent-history-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+}
+
+.recent-history-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.25rem 0 0.4rem 4rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Note info button (inline, mobile-friendly) */
+.note-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-style: italic;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.note-info-btn:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* Small badge variant */
+.badge-xs {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+/* Draft status indicator */
+.draft-status {
+  color: var(--success);
+  opacity: 0.8;
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 0.8; }
 }
 
 /* History page */
