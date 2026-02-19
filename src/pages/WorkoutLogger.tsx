@@ -42,6 +42,15 @@ export default function WorkoutLogger() {
   const [expandedNotes, setExpandedNotes] = useState<string | null>(null);
   const [showTemplateInfo, setShowTemplateInfo] = useState<Set<number>>(new Set());
   const [draftStatus, setDraftStatus] = useState<string>('');
+  const [workoutDate, setWorkoutDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Per-exercise editing state: exIdx -> editing info
+  const [editingHistory, setEditingHistory] = useState<Map<number, {
+    logId: string;
+    date: string;
+    backupSets: LoggedSet[];
+    backupNotes: string;
+  }>>(new Map());
 
   // Get previous logs for this day (exclude skipped), sorted by date descending
   const prevLogs = workoutLogs
@@ -257,35 +266,130 @@ export default function WorkoutLogger() {
   // Get last 6 results for a specific exercise (by name) across all previous logs
   const getRecentHistory = (exerciseName: string, exerciseId: string) => {
     const results: {
+      logId: string;
       date: string;
       sets: LoggedSet[];
       notes?: string;
       wasSubstitute?: boolean;
       exerciseName: string;
       workoutNotes?: string;
+      exerciseIndex: number;
     }[] = [];
 
     for (const log of prevLogs) {
       if (results.length >= 6) break;
-      // Find this exercise OR any substitute that was used in its place
-      const loggedEx = log.exercises.find(
+      const loggedExIdx = log.exercises.findIndex(
         (pe) =>
           pe.exerciseName === exerciseName ||
           pe.exerciseId === exerciseId ||
           pe.originalExerciseId === exerciseId
       );
-      if (loggedEx) {
+      if (loggedExIdx !== -1) {
+        const loggedEx = log.exercises[loggedExIdx];
         results.push({
+          logId: log.id,
           date: log.date,
           sets: loggedEx.sets,
           notes: loggedEx.notes,
           wasSubstitute: loggedEx.wasSubstitute,
           exerciseName: loggedEx.exerciseName,
           workoutNotes: log.notes,
+          exerciseIndex: loggedExIdx,
         });
       }
     }
     return results;
+  };
+
+  // Start editing a historical entry for a specific exercise
+  const startEditingHistory = (exIdx: number, entry: {
+    logId: string;
+    date: string;
+    sets: LoggedSet[];
+    notes?: string;
+    exerciseIndex: number;
+  }) => {
+    const current = exercises[exIdx];
+    setEditingHistory((prev) => {
+      const next = new Map(prev);
+      next.set(exIdx, {
+        logId: entry.logId,
+        date: entry.date,
+        backupSets: current.sets.map((s) => ({ ...s })),
+        backupNotes: current.notes || '',
+      });
+      return next;
+    });
+    // Load the historical sets into the current exercise
+    setExercises((prev) => {
+      const copy = [...prev];
+      copy[exIdx] = {
+        ...copy[exIdx],
+        sets: entry.sets.map((s) => ({ ...s })),
+        notes: entry.notes || '',
+      };
+      return copy;
+    });
+  };
+
+  // Cancel editing a historical entry
+  const cancelEditingHistory = (exIdx: number) => {
+    const editing = editingHistory.get(exIdx);
+    if (!editing) return;
+    // Restore backup
+    setExercises((prev) => {
+      const copy = [...prev];
+      copy[exIdx] = {
+        ...copy[exIdx],
+        sets: editing.backupSets,
+        notes: editing.backupNotes,
+      };
+      return copy;
+    });
+    setEditingHistory((prev) => {
+      const next = new Map(prev);
+      next.delete(exIdx);
+      return next;
+    });
+  };
+
+  // Save edited historical entry
+  const saveEditedHistory = async (exIdx: number) => {
+    const editing = editingHistory.get(exIdx);
+    if (!editing || saving) return;
+    setSaving(true);
+    try {
+      const log = workoutLogs.find((l) => l.id === editing.logId);
+      if (!log) throw new Error('Log not found');
+      const updatedExercises = [...log.exercises];
+      // Find the exercise in the log that matches
+      const targetIdx = updatedExercises.findIndex(
+        (pe) =>
+          pe.exerciseName === exercises[exIdx].exerciseName ||
+          pe.exerciseId === exercises[exIdx].exerciseId ||
+          pe.originalExerciseId === exercises[exIdx].exerciseId
+      );
+      if (targetIdx !== -1) {
+        updatedExercises[targetIdx] = {
+          ...updatedExercises[targetIdx],
+          sets: exercises[exIdx].sets.map((s) => ({ ...s })),
+          notes: exercises[exIdx].notes || undefined,
+        };
+      }
+      const updatedLog: WorkoutLog = {
+        ...log,
+        date: editing.date,
+        exercises: updatedExercises,
+      };
+      await saveWorkoutLog(updatedLog);
+      // Restore backup and clear editing state
+      cancelEditingHistory(exIdx);
+    } catch (err) {
+      console.error('Muokkauksen tallennus epäonnistui:', err);
+      alert('Muokkauksen tallentaminen epäonnistui.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Save workout
@@ -300,7 +404,7 @@ export default function WorkoutLogger() {
         programId: program.id,
         dayId: day.id,
         dayName: `${program.name} — ${day.name}`,
-        date: new Date().toISOString().split('T')[0],
+        date: workoutDate,
         exercises: exercises.map((ex, i) => ({
           ...ex,
           orderIndex: i,
@@ -335,7 +439,7 @@ export default function WorkoutLogger() {
         programId: program.id,
         dayId: day.id,
         dayName: `${program.name} — ${day.name}`,
-        date: new Date().toISOString().split('T')[0],
+        date: workoutDate,
         exercises: [],
         skipped: true,
         notes: notes || undefined,
@@ -462,118 +566,7 @@ export default function WorkoutLogger() {
                   </select>
                 )}
 
-                {/* Recent history - last 6 results */}
-                {recentHistory.length > 0 && (
-                  <div className="recent-history mt-1 mb-1">
-                    <span className="text-sm text-muted" style={{ fontWeight: 500, display: 'block', marginBottom: '0.35rem' }}>
-                      Viimeisimmät tulokset
-                    </span>
-                    {recentHistory.map((entry, hIdx) => {
-                      const noteKey = `${ex.exerciseId}-${entry.date}`;
-                      const hasNotes = !!(entry.notes || entry.workoutNotes);
-                      const isNoteExpanded = expandedNotes === noteKey;
-                      const isSubstitute = entry.wasSubstitute || entry.exerciseName !== ex.exerciseName;
-
-                      return (
-                        <div key={hIdx} className="recent-history-row">
-                          <div className="recent-history-line">
-                            <span className="text-sm text-muted" style={{ minWidth: '3.5rem' }}>
-                              {format(parseISO(entry.date), 'd.M.', { locale: fi })}
-                            </span>
-                            <span className="text-sm" style={{ flex: 1 }}>
-                              {isSubstitute && (
-                                <span className="badge badge-warning badge-xs">{entry.exerciseName}</span>
-                              )}
-                              {entry.sets.map((s, si) => (
-                                <span key={si}>
-                                  {si > 0 && ' / '}
-                                  {s.weight}kg×{s.reps}
-                                </span>
-                              ))}
-                            </span>
-                            {hasNotes && (
-                              <button
-                                className="note-info-btn"
-                                onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
-                                title="Muistiinpanot"
-                              >
-                                {isNoteExpanded ? '✕' : 'i'}
-                              </button>
-                            )}
-                          </div>
-                          {isNoteExpanded && hasNotes && (
-                            <div className="recent-history-notes">
-                              {entry.notes && (
-                                <span className="text-sm">Liike: {entry.notes}</span>
-                              )}
-                              {entry.workoutNotes && (
-                                <span className="text-sm">Treeni: {entry.workoutNotes}</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Set logging */}
-                <div className="set-row set-row-header">
-                  <span className="set-num">#</span>
-                  <span className="text-muted text-sm">kg</span>
-                  <span className="text-muted text-sm">Toistot</span>
-                  <span></span>
-                </div>
-
-                {ex.sets.map((set, setIdx) => (
-                  <div key={setIdx} className="set-row">
-                    <span className="set-num">{setIdx + 1}</span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      value={set.weight || ''}
-                      min={0}
-                      step={0.5}
-                      placeholder="0"
-                      onChange={(e) =>
-                        updateSet(exIdx, setIdx, { weight: parseFloat(e.target.value) || 0 })
-                      }
-                    />
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      value={set.reps || ''}
-                      min={0}
-                      placeholder="0"
-                      onChange={(e) =>
-                        updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0 })
-                      }
-                    />
-                    <button
-                      className="btn btn-danger btn-sm"
-                      style={{ padding: '0.25rem' }}
-                      onClick={() => removeSet(exIdx, setIdx)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-
-                <button className="btn btn-ghost btn-sm mt-1" onClick={() => addSet(exIdx)}>
-                  + Sarja
-                </button>
-
-                {/* Per-exercise notes - more prominent */}
-                <div className="exercise-note-box mt-1">
-                  <input
-                    type="text"
-                    value={ex.notes || ''}
-                    onChange={(e) => updateExerciseNotes(exIdx, e.target.value)}
-                    placeholder="Muistiinpano tähän liikkeeseen..."
-                  />
-                </div>
-
-                {/* Template notes + links behind sub-toggle */}
+                {/* Template notes + links - near the title */}
                 {hasTemplateInfo && (
                   <div className="mt-1">
                     <button
@@ -608,6 +601,176 @@ export default function WorkoutLogger() {
                     )}
                   </div>
                 )}
+
+                {/* Recent history - last 6 results */}
+                {recentHistory.length > 0 && !editingHistory.has(exIdx) && (
+                  <div className="recent-history mt-1 mb-1">
+                    <span className="text-sm text-muted" style={{ fontWeight: 500, display: 'block', marginBottom: '0.35rem' }}>
+                      Viimeisimmät tulokset
+                    </span>
+                    {recentHistory.map((entry, hIdx) => {
+                      const noteKey = `${ex.exerciseId}-${entry.date}`;
+                      const hasNotes = !!(entry.notes || entry.workoutNotes);
+                      const isNoteExpanded = expandedNotes === noteKey;
+                      const isSubstitute = entry.wasSubstitute || entry.exerciseName !== templateEx?.name;
+
+                      return (
+                        <div key={hIdx} className="recent-history-row">
+                          <div className="recent-history-line">
+                            <span className="text-sm text-muted" style={{ minWidth: '3.5rem' }}>
+                              {format(parseISO(entry.date), 'd.M.', { locale: fi })}
+                            </span>
+                            <span className="text-sm" style={{ flex: 1 }}>
+                              {isSubstitute && (
+                                <span className="badge badge-warning badge-xs">{entry.exerciseName}</span>
+                              )}
+                              {entry.sets.map((s, si) => (
+                                <span key={si}>
+                                  {si > 0 && ' / '}
+                                  {s.weight}kg×{s.reps}
+                                </span>
+                              ))}
+                            </span>
+                            {hasNotes && (
+                              <button
+                                className="note-info-btn"
+                                onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
+                                title="Muistiinpanot"
+                              >
+                                {isNoteExpanded ? '✕' : 'i'}
+                              </button>
+                            )}
+                            <button
+                              className="btn btn-ghost btn-sm history-edit-btn"
+                              onClick={() => startEditingHistory(exIdx, entry)}
+                            >
+                              Muokkaa
+                            </button>
+                          </div>
+                          {isNoteExpanded && hasNotes && (
+                            <div className="recent-history-notes">
+                              {entry.notes && (
+                                <span className="text-sm">Liike: {entry.notes}</span>
+                              )}
+                              {entry.workoutNotes && (
+                                <span className="text-sm">Treeni: {entry.workoutNotes}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Logging section - visually distinct */}
+                <div className="logging-section mt-1">
+                  <div className="logging-section-header">
+                    {editingHistory.has(exIdx) ? (
+                      <div className="flex-between">
+                        <span className="text-sm" style={{ fontWeight: 600 }}>Muokataan:</span>
+                        <input
+                          type="date"
+                          className="date-input-sm"
+                          value={editingHistory.get(exIdx)!.date}
+                          onChange={(e) => {
+                            setEditingHistory((prev) => {
+                              const next = new Map(prev);
+                              const current = next.get(exIdx)!;
+                              next.set(exIdx, { ...current, date: e.target.value });
+                              return next;
+                            });
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex-between">
+                        <span className="text-sm text-muted" style={{ fontWeight: 500 }}>Tänään</span>
+                        <input
+                          type="date"
+                          className="date-input-sm"
+                          value={workoutDate}
+                          onChange={(e) => setWorkoutDate(e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="set-row set-row-header">
+                    <span className="set-num">#</span>
+                    <span className="text-muted text-sm">kg</span>
+                    <span className="text-muted text-sm">Toistot</span>
+                    <span></span>
+                  </div>
+
+                  {ex.sets.map((set, setIdx) => (
+                    <div key={setIdx} className="set-row">
+                      <span className="set-num">{setIdx + 1}</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={set.weight || ''}
+                        min={0}
+                        step={0.5}
+                        placeholder="0"
+                        onChange={(e) =>
+                          updateSet(exIdx, setIdx, { weight: parseFloat(e.target.value) || 0 })
+                        }
+                      />
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={set.reps || ''}
+                        min={0}
+                        placeholder="0"
+                        onChange={(e) =>
+                          updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                      <button
+                        className="btn btn-danger btn-sm"
+                        style={{ padding: '0.25rem' }}
+                        onClick={() => removeSet(exIdx, setIdx)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+
+                  <button className="btn btn-ghost btn-sm mt-1" onClick={() => addSet(exIdx)}>
+                    + Sarja
+                  </button>
+
+                  {/* Per-exercise notes */}
+                  <div className="exercise-note-box mt-1">
+                    <input
+                      type="text"
+                      value={ex.notes || ''}
+                      onChange={(e) => updateExerciseNotes(exIdx, e.target.value)}
+                      placeholder="Muistiinpano tähän liikkeeseen..."
+                    />
+                  </div>
+
+                  {/* Edit mode action buttons */}
+                  {editingHistory.has(exIdx) && (
+                    <div className="flex gap-sm mt-1">
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => saveEditedHistory(exIdx)}
+                        disabled={saving}
+                      >
+                        {saving ? 'Tallennetaan...' : 'Tallenna muokkaus'}
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => cancelEditingHistory(exIdx)}
+                        disabled={saving}
+                      >
+                        Peruuta
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>

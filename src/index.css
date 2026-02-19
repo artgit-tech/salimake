@@ -485,6 +485,44 @@ th {
   opacity: 0.7;
 }
 
+/* Logging section - visually distinct area for set logging */
+.logging-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.logging-section-header {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Compact date input for logging section */
+.date-input-sm {
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.8rem;
+  width: auto;
+}
+
+.date-input-sm:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+/* History edit button */
+.history-edit-btn {
+  padding: 0.15rem 0.5rem !important;
+  font-size: 0.7rem !important;
+  flex-shrink: 0;
+}
+
 /* Recent history section */
 .recent-history {
   background: var(--bg);
