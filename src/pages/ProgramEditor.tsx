@@ -370,6 +370,8 @@ export default function ProgramEditor() {
                 };
                 saveExerciseTemplate(template).then(() => {
                   alert(`"${ex.name}" tallennettu kirjastoon!`);
+                }).catch(() => {
+                  alert('Tallentaminen kirjastoon epäonnistui.');
                 });
               }}
             />

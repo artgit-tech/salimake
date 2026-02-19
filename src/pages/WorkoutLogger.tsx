@@ -61,8 +61,6 @@ export default function WorkoutLogger() {
     });
 
     setExercises(initial);
-    // Expand all exercises by default
-    setExpandedExercises(new Set(initial.map((_, i) => i)));
   }, [day, programId, dayId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {

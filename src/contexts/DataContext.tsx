@@ -199,7 +199,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     doc(db, 'users', user!.uid, colName, docId);
 
   const saveProgram = async (program: Program) => {
-    await setDoc(userDoc('programs', program.id), program);
+    await setDoc(userDoc('programs', program.id), stripUndefined(program));
   };
 
   const deleteProgram = async (id: string) => {
@@ -207,7 +207,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const saveWorkoutLog = async (log: WorkoutLog) => {
-    await setDoc(userDoc('workoutLogs', log.id), log);
+    await setDoc(userDoc('workoutLogs', log.id), stripUndefined(log));
   };
 
   const deleteWorkoutLog = async (id: string) => {
@@ -215,7 +215,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const saveWeightEntry = async (entry: WeightEntry) => {
-    await setDoc(userDoc('weightEntries', entry.id), entry);
+    await setDoc(userDoc('weightEntries', entry.id), stripUndefined(entry));
   };
 
   const deleteWeightEntry = async (id: string) => {
@@ -223,7 +223,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const saveMeasurement = async (entry: MeasurementEntry) => {
-    await setDoc(userDoc('measurements', entry.id), entry);
+    await setDoc(userDoc('measurements', entry.id), stripUndefined(entry));
   };
 
   const deleteMeasurement = async (id: string) => {
@@ -231,7 +231,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const saveExerciseTemplate = async (template: ExerciseTemplate) => {
-    await setDoc(userDoc('exerciseTemplates', template.id), template);
+    await setDoc(userDoc('exerciseTemplates', template.id), stripUndefined(template));
   };
 
   const deleteExerciseTemplate = async (id: string) => {
@@ -271,4 +271,22 @@ function parseLocal<T>(key: string): T[] {
   } catch {
     return [];
   }
+}
+
+// Firestore does not accept undefined values. Recursively strip them.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function stripUndefined(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map((item) => stripUndefined(item));
+  }
+  if (obj && typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        result[key] = stripUndefined(value);
+      }
+    }
+    return result;
+  }
+  return obj;
 }
