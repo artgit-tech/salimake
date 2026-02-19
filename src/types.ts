@@ -78,6 +78,7 @@ export interface WorkoutLog {
   exercises: LoggedExercise[];
   durationMinutes?: number;
   notes?: string;
+  skipped?: boolean;
 }
 
 // === Body tracking types ===

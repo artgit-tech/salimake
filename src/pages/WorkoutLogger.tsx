@@ -27,11 +27,14 @@ export default function WorkoutLogger() {
 
   const [exercises, setExercises] = useState<LoggedExercise[]>([]);
   const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
   const [showPrevious, setShowPrevious] = useState<Set<number>>(new Set());
+  const [expandedExercises, setExpandedExercises] = useState<Set<number>>(new Set());
+  const [showTemplateInfo, setShowTemplateInfo] = useState<Set<number>>(new Set());
 
-  // Get previous logs for this day, sorted by date descending
+  // Get previous logs for this day (exclude skipped), sorted by date descending
   const prevLogs = workoutLogs
-    .filter((l) => l.programId === programId && l.dayId === dayId)
+    .filter((l) => l.programId === programId && l.dayId === dayId && !l.skipped)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const prevLog = prevLogs[0];
 
@@ -58,6 +61,8 @@ export default function WorkoutLogger() {
     });
 
     setExercises(initial);
+    // Expand all exercises by default
+    setExpandedExercises(new Set(initial.map((_, i) => i)));
   }, [day, programId, dayId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
@@ -190,10 +195,38 @@ export default function WorkoutLogger() {
       [copy[exIdx], copy[newIdx]] = [copy[newIdx], copy[exIdx]];
       return copy.map((ex, i) => ({ ...ex, orderIndex: i }));
     });
+    // Update expanded state to follow the moved exercise
+    setExpandedExercises((prev) => {
+      const next = new Set<number>();
+      for (const idx of prev) {
+        if (idx === exIdx) next.add(newIdx);
+        else if (idx === newIdx) next.add(exIdx);
+        else next.add(idx);
+      }
+      return next;
+    });
   };
 
   const togglePrevious = (exIdx: number) => {
     setShowPrevious((prev) => {
+      const next = new Set(prev);
+      if (next.has(exIdx)) next.delete(exIdx);
+      else next.add(exIdx);
+      return next;
+    });
+  };
+
+  const toggleExercise = (exIdx: number) => {
+    setExpandedExercises((prev) => {
+      const next = new Set(prev);
+      if (next.has(exIdx)) next.delete(exIdx);
+      else next.add(exIdx);
+      return next;
+    });
+  };
+
+  const toggleTemplateInfo = (exIdx: number) => {
+    setShowTemplateInfo((prev) => {
       const next = new Set(prev);
       if (next.has(exIdx)) next.delete(exIdx);
       else next.add(exIdx);
@@ -206,35 +239,83 @@ export default function WorkoutLogger() {
     return prevLog.exercises.find((pe) => pe.exerciseName === exerciseName) || null;
   };
 
-  // Save workout - no mandatory fields besides having exercises
+  // Save workout
   const handleSave = async () => {
-    const durationMinutes = Math.round((Date.now() - startTime.current) / 60000);
+    if (saving) return;
+    setSaving(true);
+    try {
+      const durationMinutes = Math.round((Date.now() - startTime.current) / 60000);
 
-    const log: WorkoutLog = {
-      id: uuid(),
-      programId: program.id,
-      dayId: day.id,
-      dayName: `${program.name} — ${day.name}`,
-      date: new Date().toISOString().split('T')[0],
-      exercises: exercises.map((ex, i) => ({
-        ...ex,
-        orderIndex: i,
-        notes: ex.notes || undefined,
-      })),
-      durationMinutes,
-      notes: notes || undefined,
-    };
+      const log: WorkoutLog = {
+        id: uuid(),
+        programId: program.id,
+        dayId: day.id,
+        dayName: `${program.name} — ${day.name}`,
+        date: new Date().toISOString().split('T')[0],
+        exercises: exercises.map((ex, i) => ({
+          ...ex,
+          orderIndex: i,
+          notes: ex.notes || undefined,
+        })),
+        durationMinutes,
+        notes: notes || undefined,
+      };
 
-    await saveWorkoutLog(log);
-    navigate('/history');
+      await saveWorkoutLog(log);
+      navigate('/history');
+    } catch (err) {
+      console.error('Tallennus epäonnistui:', err);
+      alert('Tallentaminen epäonnistui. Yritä uudelleen.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Skip workout
+  const handleSkip = async () => {
+    if (!window.confirm('Haluatko varmasti skipata treenin?')) return;
+    if (saving) return;
+    setSaving(true);
+    try {
+      const log: WorkoutLog = {
+        id: uuid(),
+        programId: program.id,
+        dayId: day.id,
+        dayName: `${program.name} — ${day.name}`,
+        date: new Date().toISOString().split('T')[0],
+        exercises: [],
+        skipped: true,
+        notes: notes || undefined,
+      };
+
+      await saveWorkoutLog(log);
+      navigate('/history');
+    } catch (err) {
+      console.error('Skipan tallennus epäonnistui:', err);
+      alert('Tallentaminen epäonnistui. Yritä uudelleen.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div>
-      <h1 className="page-title">
-        {day.name}
-      </h1>
-      <p className="text-muted text-sm mb-2">{program.name}</p>
+      {/* Header with edit shortcut */}
+      <div className="flex-between mb-1">
+        <div>
+          <h1 className="page-title" style={{ marginBottom: '0.25rem' }}>
+            {day.name}
+          </h1>
+          <p className="text-muted text-sm">{program.name}</p>
+        </div>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => navigate(`/programs/${programId}`)}
+          title="Muokkaa ohjelmaa"
+        >
+          Muokkaa
+        </button>
+      </div>
 
       {prevLog && (
         <div className="prev-session-banner">
@@ -252,25 +333,27 @@ export default function WorkoutLogger() {
         const options = templateEx ? getExerciseOptions(templateEx) : [];
         const hasAlternatives = options.length > 1;
         const prevEx = getPreviousExercise(ex.exerciseName);
+        const isExpanded = expandedExercises.has(exIdx);
 
         // Get the current exercise option for display of its specific parameters
         const currentOption = options.find((o) => o.name === ex.exerciseName);
 
         // Find links from the template exercise
         const exerciseLinks = templateEx?.links;
+        const hasTemplateInfo = !!(templateEx?.notes || (exerciseLinks && exerciseLinks.length > 0));
 
         return (
           <div key={`${ex.exerciseId}-${exIdx}`} className="card">
-            {/* Exercise header */}
-            <div className="exercise-logger-header">
+            {/* Clickable exercise header - always visible */}
+            <div
+              className="exercise-logger-header"
+              style={{ cursor: 'pointer' }}
+              onClick={() => toggleExercise(exIdx)}
+            >
               <div className="flex gap-sm" style={{ alignItems: 'center' }}>
-                <div className="move-buttons">
-                  <button className="btn-icon" onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0}>▲</button>
-                  <button className="btn-icon" onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === exercises.length - 1}>▼</button>
-                </div>
+                <span className="exercise-number">{exIdx + 1}.</span>
                 <div>
                   <div className="flex gap-sm" style={{ alignItems: 'center' }}>
-                    <span className="exercise-number">{exIdx + 1}.</span>
                     <strong>{ex.exerciseName}</strong>
                     {ex.wasSubstitute && (
                       <span className="badge badge-warning">korvaava</span>
@@ -281,127 +364,159 @@ export default function WorkoutLogger() {
                   )}
                 </div>
               </div>
-              <span className="badge">
-                {currentOption?.sets ?? templateEx?.sets ?? '?'}×{currentOption?.reps ?? templateEx?.reps ?? '?'}
-              </span>
+              <div className="flex gap-sm" style={{ alignItems: 'center' }}>
+                <span className="badge">
+                  {currentOption?.sets ?? templateEx?.sets ?? '?'}×{currentOption?.reps ?? templateEx?.reps ?? '?'}
+                </span>
+                {/* Weight summary when collapsed */}
+                {!isExpanded && ex.sets.some((s) => s.weight > 0) && (
+                  <span className="text-muted text-sm">
+                    {ex.sets.filter((s) => s.weight > 0).map((s) => `${s.weight}kg`).join('/')}
+                  </span>
+                )}
+                <span className="text-muted">{isExpanded ? '▲' : '▼'}</span>
+              </div>
             </div>
 
-            {/* Alternative exercise selector */}
-            {hasAlternatives && (
-              <select
-                className="exercise-select mb-1"
-                value={ex.exerciseName}
-                onChange={(e) => {
-                  const option = options.find((o) => o.name === e.target.value);
-                  if (option) switchExercise(exIdx, option);
-                }}
-              >
-                {options.map((opt) => (
-                  <option key={opt.id} value={opt.name}>
-                    {opt.name}{opt.equipment ? ` (${opt.equipment})` : ''}{opt.isAlternative ? ' — vaihtoehto' : ''}
-                  </option>
-                ))}
-              </select>
-            )}
+            {/* Expanded content */}
+            {isExpanded && (
+              <>
+                {/* Move buttons */}
+                <div className="flex gap-sm mb-1 mt-1">
+                  <div className="move-buttons" style={{ flexDirection: 'row', gap: '0.5rem' }}>
+                    <button className="btn-icon" onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0} title="Siirrä ylös">▲</button>
+                    <button className="btn-icon" onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === exercises.length - 1} title="Siirrä alas">▼</button>
+                  </div>
+                </div>
 
-            {/* Previous data */}
-            {prevEx && (
-              <div className="mb-1">
-                <button className="btn btn-ghost btn-sm" onClick={() => togglePrevious(exIdx)}>
-                  {showPrevious.has(exIdx) ? '▲ Piilota' : '▼ Edellinen'}
-                </button>
-                {showPrevious.has(exIdx) && (
-                  <div className="previous-data">
-                    <span className="text-sm">
-                      {prevEx.sets.map((s) => `${s.weight}kg×${s.reps}`).join(' / ')}
-                    </span>
-                    {prevEx.notes && (
-                      <span className="text-muted text-sm"> — {prevEx.notes}</span>
+                {/* Alternative exercise selector */}
+                {hasAlternatives && (
+                  <select
+                    className="exercise-select mb-1"
+                    value={ex.exerciseName}
+                    onChange={(e) => {
+                      const option = options.find((o) => o.name === e.target.value);
+                      if (option) switchExercise(exIdx, option);
+                    }}
+                  >
+                    {options.map((opt) => (
+                      <option key={opt.id} value={opt.name}>
+                        {opt.name}{opt.equipment ? ` (${opt.equipment})` : ''}{opt.isAlternative ? ' — vaihtoehto' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Previous data */}
+                {prevEx && (
+                  <div className="mb-1">
+                    <button className="btn btn-ghost btn-sm" onClick={() => togglePrevious(exIdx)}>
+                      {showPrevious.has(exIdx) ? '▲ Piilota' : '▼ Edellinen'}
+                    </button>
+                    {showPrevious.has(exIdx) && (
+                      <div className="previous-data">
+                        <span className="text-sm">
+                          {prevEx.sets.map((s) => `${s.weight}kg×${s.reps}`).join(' / ')}
+                        </span>
+                        {prevEx.notes && (
+                          <span className="text-muted text-sm"> — {prevEx.notes}</span>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Set logging */}
-            <div className="set-row set-row-header">
-              <span className="set-num">#</span>
-              <span className="text-muted text-sm">kg</span>
-              <span className="text-muted text-sm">Toistot</span>
-              <span></span>
-            </div>
+                {/* Set logging */}
+                <div className="set-row set-row-header">
+                  <span className="set-num">#</span>
+                  <span className="text-muted text-sm">kg</span>
+                  <span className="text-muted text-sm">Toistot</span>
+                  <span></span>
+                </div>
 
-            {ex.sets.map((set, setIdx) => (
-              <div key={setIdx} className="set-row">
-                <span className="set-num">{setIdx + 1}</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={set.weight || ''}
-                  min={0}
-                  step={0.5}
-                  placeholder="0"
-                  onChange={(e) =>
-                    updateSet(exIdx, setIdx, { weight: parseFloat(e.target.value) || 0 })
-                  }
-                />
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={set.reps || ''}
-                  min={0}
-                  placeholder="0"
-                  onChange={(e) =>
-                    updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0 })
-                  }
-                />
-                <button
-                  className="btn btn-danger btn-sm"
-                  style={{ padding: '0.25rem' }}
-                  onClick={() => removeSet(exIdx, setIdx)}
-                >
-                  ×
+                {ex.sets.map((set, setIdx) => (
+                  <div key={setIdx} className="set-row">
+                    <span className="set-num">{setIdx + 1}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={set.weight || ''}
+                      min={0}
+                      step={0.5}
+                      placeholder="0"
+                      onChange={(e) =>
+                        updateSet(exIdx, setIdx, { weight: parseFloat(e.target.value) || 0 })
+                      }
+                    />
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={set.reps || ''}
+                      min={0}
+                      placeholder="0"
+                      onChange={(e) =>
+                        updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0 })
+                      }
+                    />
+                    <button
+                      className="btn btn-danger btn-sm"
+                      style={{ padding: '0.25rem' }}
+                      onClick={() => removeSet(exIdx, setIdx)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+
+                <button className="btn btn-ghost btn-sm mt-1" onClick={() => addSet(exIdx)}>
+                  + Sarja
                 </button>
-              </div>
-            ))}
 
-            <button className="btn btn-ghost btn-sm mt-1" onClick={() => addSet(exIdx)}>
-              + Sarja
-            </button>
+                {/* Per-exercise notes */}
+                <input
+                  type="text"
+                  value={ex.notes || ''}
+                  onChange={(e) => updateExerciseNotes(exIdx, e.target.value)}
+                  placeholder="Muistiinpano..."
+                  className="exercise-note-input mt-1"
+                />
 
-            {/* Per-exercise notes */}
-            <input
-              type="text"
-              value={ex.notes || ''}
-              onChange={(e) => updateExerciseNotes(exIdx, e.target.value)}
-              placeholder="Muistiinpano..."
-              className="exercise-note-input mt-1"
-            />
-
-            {/* Template notes + links */}
-            {(templateEx?.notes || (exerciseLinks && exerciseLinks.length > 0)) && (
-              <div className="mt-1">
-                {templateEx?.notes && (
-                  <div className="text-muted text-sm" style={{ fontStyle: 'italic' }}>
-                    {templateEx.notes}
+                {/* Template notes + links behind sub-toggle */}
+                {hasTemplateInfo && (
+                  <div className="mt-1">
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => toggleTemplateInfo(exIdx)}
+                    >
+                      {showTemplateInfo.has(exIdx) ? '▲ Piilota ohjeet' : '▼ Ohjeet ja linkit'}
+                    </button>
+                    {showTemplateInfo.has(exIdx) && (
+                      <div className="mt-1">
+                        {templateEx?.notes && (
+                          <div className="text-muted text-sm" style={{ fontStyle: 'italic' }}>
+                            {templateEx.notes}
+                          </div>
+                        )}
+                        {exerciseLinks && exerciseLinks.length > 0 && (
+                          <div className="exercise-links mt-1">
+                            {exerciseLinks.map((link, idx) => (
+                              <a
+                                key={idx}
+                                href={link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="exercise-link-chip"
+                              >
+                                {getLinkLabel(link)}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
-                {exerciseLinks && exerciseLinks.length > 0 && (
-                  <div className="exercise-links mt-1">
-                    {exerciseLinks.map((link, idx) => (
-                      <a
-                        key={idx}
-                        href={link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="exercise-link-chip"
-                      >
-                        {getLinkLabel(link)}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
+              </>
             )}
           </div>
         );
@@ -418,9 +533,20 @@ export default function WorkoutLogger() {
         </div>
       </div>
 
-      <div className="flex gap-sm mb-2">
-        <button className="btn btn-primary btn-lg" onClick={handleSave}>
-          Tallenna treeni
+      <div className="flex gap-sm mb-2 flex-wrap">
+        <button
+          className="btn btn-primary btn-lg"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'Tallennetaan...' : 'Tallenna treeni'}
+        </button>
+        <button
+          className="btn btn-ghost"
+          onClick={handleSkip}
+          disabled={saving}
+        >
+          Skippaa
         </button>
         <button className="btn btn-ghost" onClick={() => navigate(-1)}>
           Peruuta

@@ -41,7 +41,7 @@ export default function WorkoutHistory() {
 
   const findPreviousLog = (log: WorkoutLog) => {
     const sameDayLogs = logs.filter(
-      (l) => l.dayName === log.dayName && l.date < log.date
+      (l) => l.dayName === log.dayName && l.date < log.date && !l.skipped
     );
     return sameDayLogs[0] || null;
   };
@@ -52,10 +52,22 @@ export default function WorkoutHistory() {
     if (logsToExport.length === 0) return;
 
     const rows: string[][] = [
-      ['Päivämäärä', 'Ohjelma', 'Liike', 'Väline', 'Järjestys', 'Sarja', 'Paino (kg)', 'Toistot', 'Korvaava', 'Muistiinpano (liike)', 'Muistiinpano (treeni)', 'Kesto (min)'],
+      ['Päivämäärä', 'Ohjelma', 'Liike', 'Väline', 'Järjestys', 'Sarja', 'Paino (kg)', 'Toistot', 'Korvaava', 'Muistiinpano (liike)', 'Muistiinpano (treeni)', 'Kesto (min)', 'Skipattu'],
     ];
 
     for (const log of logsToExport) {
+      if (log.skipped || log.exercises.length === 0) {
+        rows.push([
+          log.date,
+          log.dayName,
+          '', '', '', '', '', '', '',
+          '',
+          log.notes || '',
+          String(log.durationMinutes || ''),
+          log.skipped ? 'Kyllä' : '',
+        ]);
+        continue;
+      }
       for (const ex of log.exercises) {
         for (let si = 0; si < ex.sets.length; si++) {
           const set = ex.sets[si];
@@ -72,6 +84,7 @@ export default function WorkoutHistory() {
             si === 0 ? (ex.notes || '') : '',
             si === 0 ? (log.notes || '') : '',
             si === 0 ? String(log.durationMinutes || '') : '',
+            '',
           ]);
         }
       }
@@ -136,7 +149,12 @@ export default function WorkoutHistory() {
                 onClick={() => setExpanded(expanded === log.id ? null : log.id)}
               >
                 <div>
-                  <h3 style={{ marginBottom: '0.25rem', fontSize: '0.95rem' }}>{log.dayName}</h3>
+                  <h3 style={{ marginBottom: '0.25rem', fontSize: '0.95rem' }}>
+                    {log.dayName}
+                    {log.skipped && (
+                      <span className="badge badge-warning" style={{ marginLeft: '0.5rem' }}>Skipattu</span>
+                    )}
+                  </h3>
                   <span className="text-muted text-sm">
                     {format(parseISO(log.date), 'EEEE d.M.yyyy', { locale: fi })}
                     {log.durationMinutes ? ` · ${log.durationMinutes} min` : ''}
@@ -156,14 +174,18 @@ export default function WorkoutHistory() {
               {/* Compact summary */}
               {expanded !== log.id && (
                 <div className="mt-1">
-                  {log.exercises.map((ex, i) => (
-                    <span key={i} className="text-sm text-muted" style={{ display: 'block' }}>
-                      {(ex.orderIndex ?? i) + 1}. {ex.exerciseName}
-                      {ex.wasSubstitute ? ' *' : ''}
-                      {' — '}
-                      {formatSetsCompact(ex.sets)}
-                    </span>
-                  ))}
+                  {log.skipped ? (
+                    <span className="text-sm text-muted">Treeni skipattu</span>
+                  ) : (
+                    log.exercises.map((ex, i) => (
+                      <span key={i} className="text-sm text-muted" style={{ display: 'block' }}>
+                        {(ex.orderIndex ?? i) + 1}. {ex.exerciseName}
+                        {ex.wasSubstitute ? ' *' : ''}
+                        {' — '}
+                        {formatSetsCompact(ex.sets)}
+                      </span>
+                    ))
+                  )}
                 </div>
               )}
 

@@ -47,10 +47,14 @@ function AppContent() {
               <NavLink to="/measurements" className="hide-mobile">Mitat</NavLink>
               <button
                 className="btn-logout"
-                onClick={logout}
+                onClick={() => {
+                  if (window.confirm('Haluatko varmasti kirjautua ulos?')) {
+                    logout();
+                  }
+                }}
                 title={user.displayName || 'Kirjaudu ulos'}
               >
-                Ulos
+                Kirjaudu ulos
               </button>
             </nav>
           </div>

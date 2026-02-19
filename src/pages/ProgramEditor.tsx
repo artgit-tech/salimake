@@ -61,7 +61,7 @@ function createProgram(): Program {
 export default function ProgramEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { programs, saveProgram, exerciseTemplates, loading } = useData();
+  const { programs, saveProgram, exerciseTemplates, saveExerciseTemplate, loading } = useData();
   const existing = id ? programs.find((p) => p.id === id) : undefined;
 
   const [program, setProgram] = useState<Program>(existing ?? createProgram());
@@ -354,6 +354,24 @@ export default function ProgramEditor() {
               onRemoveAlternative={(altIdx) => removeAlternative(dayIdx, exIdx, altIdx)}
               onAddLink={(url) => addLink(dayIdx, exIdx, url)}
               onRemoveLink={(linkIdx) => removeLink(dayIdx, exIdx, linkIdx)}
+              onSaveToLibrary={() => {
+                const template = {
+                  id: uuid(),
+                  name: ex.name,
+                  equipment: ex.equipment || undefined,
+                  sets: ex.sets,
+                  reps: ex.reps,
+                  restSeconds: ex.restSeconds,
+                  notes: ex.notes || undefined,
+                  links: ex.links?.length ? [...ex.links] : undefined,
+                  alternatives: ex.alternatives?.length
+                    ? ex.alternatives.map((a) => ({ ...a }))
+                    : undefined,
+                };
+                saveExerciseTemplate(template).then(() => {
+                  alert(`"${ex.name}" tallennettu kirjastoon!`);
+                });
+              }}
             />
           ))}
 
@@ -450,6 +468,7 @@ interface ExerciseEditorProps {
   onRemoveAlternative: (altIdx: number) => void;
   onAddLink: (url: string) => void;
   onRemoveLink: (linkIdx: number) => void;
+  onSaveToLibrary: () => void;
 }
 
 function ExerciseEditor({
@@ -469,6 +488,7 @@ function ExerciseEditor({
   onRemoveAlternative,
   onAddLink,
   onRemoveLink,
+  onSaveToLibrary,
 }: ExerciseEditorProps) {
   const [linkInput, setLinkInput] = useState('');
 
@@ -537,6 +557,16 @@ function ExerciseEditor({
           onChange={(e) => onUpdate({ notes: e.target.value })}
           placeholder="esim. käsien leveys, suoritusvinkit..."
         />
+      </div>
+
+      <div className="mt-1">
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={onSaveToLibrary}
+          disabled={!ex.name.trim()}
+        >
+          Tallenna kirjastoon
+        </button>
       </div>
 
       {/* Expandable section: alternatives + links */}
