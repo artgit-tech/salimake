@@ -1,15 +1,25 @@
+// === Program / Template types ===
+
+export interface AlternativeExercise {
+  id: string;
+  name: string;
+  equipment?: string;
+}
+
 export interface Exercise {
   id: string;
   name: string;
+  equipment?: string; // e.g. "rintaprässi", "tasapenkki", "smith-kone"
   sets: number;
   reps: string; // e.g. "8-12" or "10"
   restSeconds: number;
   notes?: string;
+  alternatives?: AlternativeExercise[]; // substitute exercises if primary is unavailable
 }
 
 export interface WorkoutDay {
   id: string;
-  name: string; // e.g. "Päivä A - Yläkroppa"
+  name: string; // e.g. "Päivä A - Rintapäivä"
   exercises: Exercise[];
 }
 
@@ -22,6 +32,8 @@ export interface Program {
   updatedAt: string;
 }
 
+// === Workout logging types ===
+
 export interface LoggedSet {
   reps: number;
   weight: number; // kg
@@ -30,8 +42,12 @@ export interface LoggedSet {
 export interface LoggedExercise {
   exerciseId: string;
   exerciseName: string;
+  equipment?: string;
   sets: LoggedSet[];
   notes?: string;
+  orderIndex: number; // actual order performed in this session
+  wasSubstitute?: boolean; // true if this was a substitute for the planned exercise
+  originalExerciseId?: string; // the planned exercise this substituted for
 }
 
 export interface WorkoutLog {
@@ -44,6 +60,8 @@ export interface WorkoutLog {
   durationMinutes?: number;
   notes?: string;
 }
+
+// === Body tracking types ===
 
 export interface WeightEntry {
   id: string;

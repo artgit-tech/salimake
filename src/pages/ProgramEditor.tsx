@@ -1,11 +1,24 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
 import { useData } from '../contexts/DataContext';
-import type { Program, WorkoutDay, Exercise } from '../types';
+import type { Program, WorkoutDay, Exercise, AlternativeExercise } from '../types';
+
+function createAlternative(): AlternativeExercise {
+  return { id: uuid(), name: '', equipment: '' };
+}
 
 function createExercise(): Exercise {
-  return { id: uuid(), name: '', sets: 3, reps: '10', restSeconds: 90 };
+  return {
+    id: uuid(),
+    name: '',
+    equipment: '',
+    sets: 3,
+    reps: '10',
+    restSeconds: 90,
+    notes: '',
+    alternatives: [],
+  };
 }
 
 function createDay(): WorkoutDay {
@@ -30,6 +43,11 @@ export default function ProgramEditor() {
   const existing = id ? programs.find((p) => p.id === id) : undefined;
 
   const [program, setProgram] = useState<Program>(existing ?? createProgram());
+  const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set());
+
+  // Drag & drop state
+  const dragItem = useRef<{ dayIdx: number; exIdx: number } | null>(null);
+  const dragOverItem = useRef<{ dayIdx: number; exIdx: number } | null>(null);
 
   if (loading) {
     return <div className="loading-spinner" />;
@@ -88,6 +106,102 @@ export default function ProgramEditor() {
         exercises: days[dayIdx].exercises.filter((_, i) => i !== exIdx),
       };
       return { ...prev, days };
+    });
+  };
+
+  // --- Alternative exercises ---
+  const addAlternative = (dayIdx: number, exIdx: number) => {
+    setProgram((prev) => {
+      const days = [...prev.days];
+      const exercises = [...days[dayIdx].exercises];
+      const alts = [...(exercises[exIdx].alternatives || []), createAlternative()];
+      exercises[exIdx] = { ...exercises[exIdx], alternatives: alts };
+      days[dayIdx] = { ...days[dayIdx], exercises };
+      return { ...prev, days };
+    });
+  };
+
+  const updateAlternative = (
+    dayIdx: number,
+    exIdx: number,
+    altIdx: number,
+    partial: Partial<AlternativeExercise>
+  ) => {
+    setProgram((prev) => {
+      const days = [...prev.days];
+      const exercises = [...days[dayIdx].exercises];
+      const alts = [...(exercises[exIdx].alternatives || [])];
+      alts[altIdx] = { ...alts[altIdx], ...partial };
+      exercises[exIdx] = { ...exercises[exIdx], alternatives: alts };
+      days[dayIdx] = { ...days[dayIdx], exercises };
+      return { ...prev, days };
+    });
+  };
+
+  const removeAlternative = (dayIdx: number, exIdx: number, altIdx: number) => {
+    setProgram((prev) => {
+      const days = [...prev.days];
+      const exercises = [...days[dayIdx].exercises];
+      const alts = (exercises[exIdx].alternatives || []).filter((_, i) => i !== altIdx);
+      exercises[exIdx] = { ...exercises[exIdx], alternatives: alts };
+      days[dayIdx] = { ...days[dayIdx], exercises };
+      return { ...prev, days };
+    });
+  };
+
+  // --- Drag & drop reordering ---
+  const handleDragStart = (dayIdx: number, exIdx: number) => {
+    dragItem.current = { dayIdx, exIdx };
+  };
+
+  const handleDragEnter = (dayIdx: number, exIdx: number) => {
+    dragOverItem.current = { dayIdx, exIdx };
+  };
+
+  const handleDragEnd = () => {
+    if (!dragItem.current || !dragOverItem.current) return;
+    const { dayIdx: fromDay, exIdx: fromEx } = dragItem.current;
+    const { dayIdx: toDay, exIdx: toEx } = dragOverItem.current;
+
+    // Only reorder within the same day
+    if (fromDay !== toDay) {
+      dragItem.current = null;
+      dragOverItem.current = null;
+      return;
+    }
+
+    setProgram((prev) => {
+      const days = [...prev.days];
+      const exercises = [...days[fromDay].exercises];
+      const [movedItem] = exercises.splice(fromEx, 1);
+      exercises.splice(toEx, 0, movedItem);
+      days[fromDay] = { ...days[fromDay], exercises };
+      return { ...prev, days };
+    });
+
+    dragItem.current = null;
+    dragOverItem.current = null;
+  };
+
+  // --- Move exercise up/down (fallback for mobile) ---
+  const moveExercise = (dayIdx: number, exIdx: number, direction: -1 | 1) => {
+    const newIdx = exIdx + direction;
+    if (newIdx < 0 || newIdx >= program.days[dayIdx].exercises.length) return;
+    setProgram((prev) => {
+      const days = [...prev.days];
+      const exercises = [...days[dayIdx].exercises];
+      [exercises[exIdx], exercises[newIdx]] = [exercises[newIdx], exercises[exIdx]];
+      days[dayIdx] = { ...days[dayIdx], exercises };
+      return { ...prev, days };
+    });
+  };
+
+  const toggleExpanded = (exerciseId: string) => {
+    setExpandedExercises((prev) => {
+      const next = new Set(prev);
+      if (next.has(exerciseId)) next.delete(exerciseId);
+      else next.add(exerciseId);
+      return next;
     });
   };
 
@@ -158,15 +272,56 @@ export default function ProgramEditor() {
               type="text"
               value={day.name}
               onChange={(e) => updateDay(dayIdx, { name: e.target.value })}
-              placeholder="esim. Työntävät / Yläkroppa A"
+              placeholder="esim. Rintapäivä / Selkäpäivä / Jalkapäivä"
             />
           </div>
 
           {day.exercises.map((ex, exIdx) => (
-            <div key={ex.id} className="exercise-row">
-              <div className="exercise-fields">
+            <div
+              key={ex.id}
+              className="exercise-row"
+              draggable
+              onDragStart={() => handleDragStart(dayIdx, exIdx)}
+              onDragEnter={() => handleDragEnter(dayIdx, exIdx)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => e.preventDefault()}
+            >
+              {/* Drag handle + exercise number + move buttons */}
+              <div className="exercise-header">
+                <div className="flex gap-sm" style={{ alignItems: 'center' }}>
+                  <span className="drag-handle" title="Raahaa järjestääksesi">⠿</span>
+                  <span className="exercise-number">{exIdx + 1}.</span>
+                  <div className="move-buttons">
+                    <button
+                      className="btn-icon"
+                      onClick={() => moveExercise(dayIdx, exIdx, -1)}
+                      disabled={exIdx === 0}
+                      title="Siirrä ylös"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      className="btn-icon"
+                      onClick={() => moveExercise(dayIdx, exIdx, 1)}
+                      disabled={exIdx === day.exercises.length - 1}
+                      title="Siirrä alas"
+                    >
+                      ▼
+                    </button>
+                  </div>
+                </div>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => removeExercise(dayIdx, exIdx)}
+                >
+                  Poista
+                </button>
+              </div>
+
+              {/* Main exercise fields */}
+              <div className="exercise-fields-2col">
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>Liike</label>
+                  <label>Liikkeen nimi</label>
                   <input
                     type="text"
                     value={ex.name}
@@ -176,6 +331,20 @@ export default function ProgramEditor() {
                     placeholder="esim. Penkkipunnerrus"
                   />
                 </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Väline / suoritustapa</label>
+                  <input
+                    type="text"
+                    value={ex.equipment || ''}
+                    onChange={(e) =>
+                      updateExercise(dayIdx, exIdx, { equipment: e.target.value })
+                    }
+                    placeholder="esim. rintaprässi, tasapenkki"
+                  />
+                </div>
+              </div>
+
+              <div className="exercise-fields-4col mt-1">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label>Sarjat</label>
                   <input
@@ -215,13 +384,78 @@ export default function ProgramEditor() {
                   />
                 </div>
               </div>
-              <div className="mt-1" style={{ textAlign: 'right' }}>
+
+              {/* Notes field */}
+              <div className="form-group mt-1" style={{ marginBottom: 0 }}>
+                <label>Muistiinpano (valinnainen)</label>
+                <input
+                  type="text"
+                  value={ex.notes || ''}
+                  onChange={(e) =>
+                    updateExercise(dayIdx, exIdx, { notes: e.target.value })
+                  }
+                  placeholder="esim. käsien leveys, vinkki suoritukseen..."
+                />
+              </div>
+
+              {/* Expandable: Alternative exercises */}
+              <div className="mt-1">
                 <button
-                  className="btn btn-danger btn-sm"
-                  onClick={() => removeExercise(dayIdx, exIdx)}
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => toggleExpanded(ex.id)}
                 >
-                  Poista liike
+                  {expandedExercises.has(ex.id) ? '▲' : '▼'} Vaihtoehtoiset liikkeet
+                  {(ex.alternatives?.length ?? 0) > 0 && ` (${ex.alternatives!.length})`}
                 </button>
+
+                {expandedExercises.has(ex.id) && (
+                  <div className="alternatives-section">
+                    {(ex.alternatives || []).map((alt, altIdx) => (
+                      <div key={alt.id} className="alternative-row">
+                        <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                          <label>Vaihtoehtoinen liike</label>
+                          <input
+                            type="text"
+                            value={alt.name}
+                            onChange={(e) =>
+                              updateAlternative(dayIdx, exIdx, altIdx, {
+                                name: e.target.value,
+                              })
+                            }
+                            placeholder="esim. Tasapenkki"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                          <label>Väline</label>
+                          <input
+                            type="text"
+                            value={alt.equipment || ''}
+                            onChange={(e) =>
+                              updateAlternative(dayIdx, exIdx, altIdx, {
+                                equipment: e.target.value,
+                              })
+                            }
+                            placeholder="esim. vapaapenkki"
+                          />
+                        </div>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          style={{ alignSelf: 'flex-end' }}
+                          onClick={() => removeAlternative(dayIdx, exIdx, altIdx)}
+                          title="Poista vaihtoehto"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => addAlternative(dayIdx, exIdx)}
+                    >
+                      + Lisää vaihtoehto
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
