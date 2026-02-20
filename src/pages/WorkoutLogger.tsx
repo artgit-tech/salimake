@@ -629,9 +629,7 @@ export default function WorkoutLogger() {
                 {/* Recent history - last 6 results, oldest first */}
                 {recentHistory.length > 0 && !editingHistory.has(exIdx) && (
                   <div className="recent-history mt-1 mb-1">
-                    <span className="text-sm text-muted" style={{ fontWeight: 500, display: 'block', marginBottom: '0.35rem' }}>
-                      Viimeisimmät tulokset
-                    </span>
+                    <div className="recent-history-title">Viimeisimmät tulokset</div>
                     {recentHistory.map((entry, hIdx) => {
                       const noteKey = `${exIdx}-${ex.exerciseId}-${entry.date}-${hIdx}`;
                       const hasNotes = !!(entry.notes || entry.workoutNotes);
@@ -644,59 +642,69 @@ export default function WorkoutLogger() {
                       const prevMaxWeight = prevEntry && !prevEntry.skipped ? Math.max(...prevEntry.sets.map((s) => s.weight)) : 0;
                       const weightDiff = prevEntry && maxWeight > 0 && prevMaxWeight > 0 ? maxWeight - prevMaxWeight : 0;
 
+                      // Format sets compactly: if all sets identical show "3×5 @ 60kg"
+                      const formatSets = (sets: { weight: number; reps: number }[]) => {
+                        const allSame = sets.length > 1 && sets.every(
+                          (s) => s.weight === sets[0].weight && s.reps === sets[0].reps
+                        );
+                        if (allSame) {
+                          return `${sets.length}×${sets[0].reps} @ ${sets[0].weight} kg`;
+                        }
+                        return sets.map((s) => `${s.weight}×${s.reps}`).join(' / ');
+                      };
+
                       return (
                         <div key={hIdx} className="recent-history-row">
-                          <div className="recent-history-line">
-                            <span className="text-sm text-muted" style={{ minWidth: '3.5rem' }}>
+                          <div className="recent-history-top">
+                            <span className="recent-history-date">
                               {format(parseISO(entry.date), 'd.M.', { locale: fi })}
                             </span>
-                            <span className="text-sm" style={{ flex: 1 }}>
-                              {entry.skipped ? (
-                                <span className="badge badge-muted badge-xs">Skipattu</span>
-                              ) : (
-                                <>
-                                  {isSubstitute && (
-                                    <span className="badge badge-warning badge-xs">{entry.exerciseName}</span>
-                                  )}
-                                  {entry.sets.map((s, si) => (
-                                    <span key={si}>
-                                      {si > 0 && ' / '}
-                                      {s.weight}kg×{s.reps}
-                                    </span>
-                                  ))}
-                                  {weightDiff !== 0 && (
-                                    <span className={weightDiff > 0 ? 'trend-up' : 'trend-down'}>
-                                      {weightDiff > 0 ? '+' : ''}{weightDiff}
-                                    </span>
-                                  )}
-                                </>
+                            {!entry.skipped && isSubstitute && (
+                              <span className="badge badge-warning badge-xs">{entry.exerciseName}</span>
+                            )}
+                            {entry.skipped && (
+                              <span className="badge badge-muted badge-xs">Skipattu</span>
+                            )}
+                            {weightDiff !== 0 && (
+                              <span className={weightDiff > 0 ? 'trend-up' : 'trend-down'}>
+                                {weightDiff > 0 ? '↑' : '↓'} {Math.abs(weightDiff)} kg
+                              </span>
+                            )}
+                            {prevEntry && weightDiff === 0 && maxWeight > 0 && (
+                              <span className="trend-same">= sama</span>
+                            )}
+                            <div className="recent-history-actions">
+                              {hasNotes && (
+                                <button
+                                  className="note-info-btn"
+                                  onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
+                                  title="Muistiinpanot"
+                                >
+                                  {isNoteExpanded ? '✕' : 'i'}
+                                </button>
                               )}
-                            </span>
-                            {hasNotes && (
-                              <button
-                                className="note-info-btn"
-                                onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
-                                title="Muistiinpanot"
-                              >
-                                {isNoteExpanded ? '✕' : 'i'}
-                              </button>
-                            )}
-                            {!entry.skipped && (
-                              <button
-                                className="btn btn-ghost btn-sm history-edit-btn"
-                                onClick={() => startEditingHistory(exIdx, entry)}
-                              >
-                                Muokkaa
-                              </button>
-                            )}
+                              {!entry.skipped && (
+                                <button
+                                  className="btn btn-ghost btn-sm history-edit-btn"
+                                  onClick={() => startEditingHistory(exIdx, entry)}
+                                >
+                                  ✎
+                                </button>
+                              )}
+                            </div>
                           </div>
+                          {!entry.skipped && (
+                            <div className="recent-history-sets">
+                              {formatSets(entry.sets)}
+                            </div>
+                          )}
                           {isNoteExpanded && hasNotes && (
                             <div className="recent-history-notes">
                               {entry.notes && (
-                                <span className="text-sm">Muistiinpanot: {entry.notes}</span>
+                                <span>📝 {entry.notes}</span>
                               )}
                               {entry.workoutNotes && (
-                                <span className="text-sm">Treeni: {entry.workoutNotes}</span>
+                                <span>🏋 {entry.workoutNotes}</span>
                               )}
                             </div>
                           )}

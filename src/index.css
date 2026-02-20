@@ -13,6 +13,10 @@
   --success: #22c55e;
   --success-glow: rgba(34, 197, 94, 0.2);
   --warning: #f59e0b;
+  --indigo-bg: #12142a;
+  --indigo-bg-light: #191c38;
+  --indigo-border: #282d54;
+  --indigo-accent: #3d42a0;
   --radius: 12px;
   --radius-sm: 8px;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -597,10 +601,10 @@ th {
   opacity: 0.7;
 }
 
-/* Logging section - visually distinct area */
+/* Logging section - indigo-tinted area */
 .logging-section {
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--indigo-bg);
+  border: 1px solid var(--indigo-border);
   border-radius: var(--radius);
   padding: 0.75rem;
   margin-top: 0.75rem;
@@ -609,11 +613,82 @@ th {
 .logging-section-header {
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--indigo-border);
 }
 
 .logging-section-header .text-muted {
   color: var(--primary-hover);
+}
+
+/* Indigo-tinted inputs inside logging section */
+.logging-section input[type='number'],
+.logging-section input[type='text'],
+.logging-section input[type='date'],
+.logging-section select,
+.logging-section textarea {
+  background: var(--indigo-bg-light);
+  border-color: var(--indigo-border);
+}
+
+.logging-section input:focus,
+.logging-section select:focus,
+.logging-section textarea:focus {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Indigo set number badges */
+.logging-section .set-num {
+  background: var(--indigo-bg-light);
+  color: var(--primary-hover);
+  border: 1px solid var(--indigo-border);
+}
+
+/* Indigo ghost buttons */
+.logging-section .btn-ghost {
+  border-color: var(--indigo-border);
+}
+
+.logging-section .btn-ghost:hover:not(:disabled) {
+  background: var(--indigo-bg-light);
+  border-color: var(--indigo-accent);
+}
+
+/* Indigo set delete button */
+.logging-section .set-delete-btn {
+  color: var(--indigo-border);
+}
+
+.logging-section .set-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+}
+
+/* Indigo exercise note box */
+.logging-section .exercise-note-box input {
+  background: var(--indigo-bg-light) !important;
+  border-color: var(--indigo-border) !important;
+}
+
+.logging-section .exercise-note-box input:focus {
+  border-color: var(--warning) !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12) !important;
+}
+
+/* Indigo exercise select */
+.logging-section .exercise-select {
+  background: var(--indigo-bg-light);
+  border-color: var(--indigo-border);
+}
+
+/* Indigo set row header */
+.logging-section .set-row-header {
+  border-bottom-color: var(--indigo-border);
+}
+
+/* Indigo zebra striping */
+.logging-section .set-row:nth-child(even):not(.set-row-header) {
+  background: rgba(99, 102, 241, 0.04);
 }
 
 /* Compact date input for logging section */
@@ -648,43 +723,97 @@ th {
   padding: 0.5rem 0.75rem;
 }
 
+.recent-history-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+}
+
 .recent-history-row {
-  border-bottom: 1px solid var(--border);
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .recent-history-row:last-child {
   border-bottom: none;
 }
 
-.recent-history-line {
+/* Top line: date, trend, buttons */
+.recent-history-top {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0;
+  gap: 0.4rem;
+}
+
+.recent-history-date {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 2.8rem;
+}
+
+.recent-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Bottom line: set details */
+.recent-history-sets {
+  font-size: 0.8rem;
+  color: var(--text);
+  margin-top: 0.15rem;
+  padding-left: 2.8rem;
+  line-height: 1.4;
 }
 
 .recent-history-notes {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  padding: 0.25rem 0 0.4rem 4rem;
+  padding: 0.2rem 0 0.3rem 2.8rem;
   color: var(--text-muted);
   font-style: italic;
+  font-size: 0.75rem;
 }
 
 /* Weight trend indicator */
 .trend-up {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.65rem;
+  font-weight: 700;
   color: var(--success);
-  font-size: 0.7rem;
-  font-weight: 600;
-  margin-left: 0.25rem;
+  background: rgba(34, 197, 94, 0.12);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
 }
 
 .trend-down {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.65rem;
+  font-weight: 700;
   color: var(--danger);
-  font-size: 0.7rem;
+  background: rgba(239, 68, 68, 0.12);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.trend-same {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.65rem;
   font-weight: 600;
-  margin-left: 0.25rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
 }
 
 /* Note info button */
