@@ -580,7 +580,7 @@ export default function WorkoutLogger() {
 
         // Get all history for this exercise (newest first)
         const allHistory = getAllHistory(ex.exerciseName, ex.exerciseId);
-        const limit = historyLimit.get(exIdx) ?? 6;
+        const limit = historyLimit.get(exIdx) ?? 4;
         const visibleHistory = allHistory.slice(0, limit);
         const hasMore = allHistory.length > limit;
 
@@ -619,7 +619,19 @@ export default function WorkoutLogger() {
                     {ex.sets.filter((s) => s.weight > 0).map((s) => `${s.weight}kg`).join('/')}
                   </span>
                 )}
-                <span className="text-muted">{isExpanded ? '▲' : '▼'}</span>
+                <svg
+                  className={`accordion-chevron${isExpanded ? ' accordion-chevron-open' : ''}`}
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </div>
             </div>
 
@@ -785,7 +797,7 @@ export default function WorkoutLogger() {
                         style={{ width: '100%', justifyContent: 'center' }}
                         onClick={() => setHistoryLimit((prev) => {
                           const next = new Map(prev);
-                          next.set(exIdx, limit + 10);
+                          next.set(exIdx, limit + 6);
                           return next;
                         })}
                       >

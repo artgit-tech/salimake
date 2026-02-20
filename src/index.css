@@ -644,6 +644,12 @@ th {
   border: 1px solid var(--indigo-border);
 }
 
+.logging-section .set-row-header .set-num {
+  background: none;
+  color: var(--text-muted);
+  border: none;
+}
+
 /* Indigo ghost buttons */
 .logging-section .btn-ghost {
   border-color: var(--indigo-border);
@@ -684,6 +690,7 @@ th {
 /* Indigo set row header */
 .logging-section .set-row-header {
   border-bottom-color: var(--indigo-border);
+  border-radius: 0;
 }
 
 
@@ -768,7 +775,7 @@ th {
 .recent-history-date {
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--primary);
   min-width: 2.5rem;
   flex-shrink: 0;
 }
@@ -862,6 +869,17 @@ th {
 }
 
 /* ===== Accordion animation ===== */
+/* Accordion chevron icon */
+.accordion-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.accordion-chevron-open {
+  transform: rotate(180deg);
+}
+
 .accordion-content {
   animation: slideDown 0.2s ease-out;
 }
@@ -929,6 +947,15 @@ th {
   margin-bottom: 0.15rem;
   padding-bottom: 0.25rem;
   border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.set-row-header .set-num {
+  background: none;
+  border: none;
+  width: auto;
+  height: auto;
+  border-radius: 0;
 }
 
 /* ===== History page ===== */
