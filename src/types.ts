@@ -67,6 +67,7 @@ export interface LoggedExercise {
   orderIndex: number;
   wasSubstitute?: boolean;
   originalExerciseId?: string;
+  skipped?: boolean;
 }
 
 export interface WorkoutLog {

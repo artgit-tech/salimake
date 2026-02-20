@@ -455,6 +455,22 @@ th {
   color: #000;
 }
 
+.badge-success {
+  background: var(--success);
+  color: #000;
+}
+
+.badge-muted {
+  background: var(--border);
+  color: var(--text-muted);
+}
+
+/* Saved exercise card */
+.card-saved {
+  border-color: var(--success);
+  border-left: 3px solid var(--success);
+}
+
 /* Previous workout data inline */
 .previous-data {
   margin-top: 0.35rem;

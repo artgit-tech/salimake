@@ -69,6 +69,21 @@ export default function WorkoutHistory() {
         continue;
       }
       for (const ex of log.exercises) {
+        if (ex.skipped) {
+          rows.push([
+            log.date,
+            log.dayName,
+            ex.exerciseName,
+            ex.equipment || '',
+            String((ex.orderIndex ?? 0) + 1),
+            '', '', '', '',
+            ex.notes || '',
+            log.notes || '',
+            String(log.durationMinutes || ''),
+            'Kyllä',
+          ]);
+          continue;
+        }
         for (let si = 0; si < ex.sets.length; si++) {
           const set = ex.sets[si];
           rows.push([
@@ -181,8 +196,7 @@ export default function WorkoutHistory() {
                       <span key={i} className="text-sm text-muted" style={{ display: 'block' }}>
                         {(ex.orderIndex ?? i) + 1}. {ex.exerciseName}
                         {ex.wasSubstitute ? ' *' : ''}
-                        {' — '}
-                        {formatSetsCompact(ex.sets)}
+                        {ex.skipped ? ' — Skipattu' : ` — ${formatSetsCompact(ex.sets)}`}
                       </span>
                     ))
                   )}
@@ -213,43 +227,49 @@ export default function WorkoutHistory() {
                           </div>
                         </div>
 
-                        <div className="table-wrap mt-1">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>#</th>
-                                <th>kg</th>
-                                <th>Toistot</th>
-                                {prevEx && <th>Edell.</th>}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {ex.sets.map((set, si) => {
-                                const prevSet = prevEx?.sets[si];
-                                const weightDiff = prevSet ? set.weight - prevSet.weight : 0;
-                                return (
-                                  <tr key={si}>
-                                    <td>{si + 1}</td>
-                                    <td>
-                                      {set.weight}
-                                      {weightDiff !== 0 && (
-                                        <span className={weightDiff > 0 ? 'text-success' : 'text-danger'} style={{ fontSize: '0.7rem', marginLeft: '0.2rem' }}>
-                                          {weightDiff > 0 ? '+' : ''}{weightDiff}
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td>{set.reps}</td>
-                                    {prevEx && (
-                                      <td className="text-muted">
-                                        {prevSet ? `${prevSet.weight} x ${prevSet.reps}` : '—'}
+                        {ex.skipped ? (
+                          <div className="mt-1">
+                            <span className="badge badge-muted">Skipattu</span>
+                          </div>
+                        ) : (
+                          <div className="table-wrap mt-1">
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>#</th>
+                                  <th>kg</th>
+                                  <th>Toistot</th>
+                                  {prevEx && <th>Edell.</th>}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {ex.sets.map((set, si) => {
+                                  const prevSet = prevEx?.sets[si];
+                                  const weightDiff = prevSet ? set.weight - prevSet.weight : 0;
+                                  return (
+                                    <tr key={si}>
+                                      <td>{si + 1}</td>
+                                      <td>
+                                        {set.weight}
+                                        {weightDiff !== 0 && (
+                                          <span className={weightDiff > 0 ? 'text-success' : 'text-danger'} style={{ fontSize: '0.7rem', marginLeft: '0.2rem' }}>
+                                            {weightDiff > 0 ? '+' : ''}{weightDiff}
+                                          </span>
+                                        )}
                                       </td>
-                                    )}
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
+                                      <td>{set.reps}</td>
+                                      {prevEx && (
+                                        <td className="text-muted">
+                                          {prevSet ? `${prevSet.weight} x ${prevSet.reps}` : '—'}
+                                        </td>
+                                      )}
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
 
                         {ex.notes && (
                           <p className="text-muted text-sm mt-1">{ex.notes}</p>
