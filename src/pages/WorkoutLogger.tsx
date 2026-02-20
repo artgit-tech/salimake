@@ -636,12 +636,6 @@ export default function WorkoutLogger() {
                       const isNoteExpanded = expandedNotes === noteKey;
                       const isSubstitute = entry.wasSubstitute || entry.exerciseName !== templateEx?.name;
 
-                      // Weight trend: compare max weight with previous entry
-                      const prevEntry = hIdx > 0 ? recentHistory[hIdx - 1] : null;
-                      const maxWeight = entry.skipped ? 0 : Math.max(...entry.sets.map((s) => s.weight));
-                      const prevMaxWeight = prevEntry && !prevEntry.skipped ? Math.max(...prevEntry.sets.map((s) => s.weight)) : 0;
-                      const weightDiff = prevEntry && maxWeight > 0 && prevMaxWeight > 0 ? maxWeight - prevMaxWeight : 0;
-
                       // Format sets compactly: if all sets identical show "3×5 @ 60kg"
                       const formatSets = (sets: { weight: number; reps: number }[]) => {
                         const allSame = sets.length > 1 && sets.every(
@@ -659,41 +653,56 @@ export default function WorkoutLogger() {
                             <span className="recent-history-date">
                               {format(parseISO(entry.date), 'd.M.', { locale: fi })}
                             </span>
-                            {!entry.skipped && isSubstitute && (
-                              <span className="badge badge-warning badge-xs">{entry.exerciseName}</span>
-                            )}
-                            {entry.skipped && (
+                            {entry.skipped ? (
                               <span className="badge badge-muted badge-xs">Skipattu</span>
+                            ) : isSubstitute ? (
+                              <>
+                                <span className="badge badge-warning badge-xs">{entry.exerciseName}</span>
+                                <div className="recent-history-actions">
+                                  {hasNotes && (
+                                    <button
+                                      className="note-info-btn"
+                                      onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
+                                      title="Muistiinpanot"
+                                    >
+                                      {isNoteExpanded ? '✕' : 'i'}
+                                    </button>
+                                  )}
+                                  <button
+                                    className="btn btn-ghost btn-sm history-edit-btn"
+                                    onClick={() => startEditingHistory(exIdx, entry)}
+                                  >
+                                    ✎
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <span className="recent-history-sets-inline">
+                                  {formatSets(entry.sets)}
+                                </span>
+                                <div className="recent-history-actions">
+                                  {hasNotes && (
+                                    <button
+                                      className="note-info-btn"
+                                      onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
+                                      title="Muistiinpanot"
+                                    >
+                                      {isNoteExpanded ? '✕' : 'i'}
+                                    </button>
+                                  )}
+                                  <button
+                                    className="btn btn-ghost btn-sm history-edit-btn"
+                                    onClick={() => startEditingHistory(exIdx, entry)}
+                                  >
+                                    ✎
+                                  </button>
+                                </div>
+                              </>
                             )}
-                            {weightDiff !== 0 && (
-                              <span className={weightDiff > 0 ? 'trend-up' : 'trend-down'}>
-                                {weightDiff > 0 ? '↑' : '↓'} {Math.abs(weightDiff)} kg
-                              </span>
-                            )}
-                            {prevEntry && weightDiff === 0 && maxWeight > 0 && (
-                              <span className="trend-same">= sama</span>
-                            )}
-                            <div className="recent-history-actions">
-                              {hasNotes && (
-                                <button
-                                  className="note-info-btn"
-                                  onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
-                                  title="Muistiinpanot"
-                                >
-                                  {isNoteExpanded ? '✕' : 'i'}
-                                </button>
-                              )}
-                              {!entry.skipped && (
-                                <button
-                                  className="btn btn-ghost btn-sm history-edit-btn"
-                                  onClick={() => startEditingHistory(exIdx, entry)}
-                                >
-                                  ✎
-                                </button>
-                              )}
-                            </div>
                           </div>
-                          {!entry.skipped && (
+                          {/* Sets on second row only for substitute exercises */}
+                          {!entry.skipped && isSubstitute && (
                             <div className="recent-history-sets">
                               {formatSets(entry.sets)}
                             </div>
@@ -701,10 +710,10 @@ export default function WorkoutLogger() {
                           {isNoteExpanded && hasNotes && (
                             <div className="recent-history-notes">
                               {entry.notes && (
-                                <span>📝 {entry.notes}</span>
+                                <span><span className="note-icon-inline">&#9998;</span> <em>{entry.notes}</em></span>
                               )}
                               {entry.workoutNotes && (
-                                <span>🏋 {entry.workoutNotes}</span>
+                                <span><span className="note-icon-inline">&#9878;</span> <em>{entry.workoutNotes}</em></span>
                               )}
                             </div>
                           )}
@@ -810,12 +819,13 @@ export default function WorkoutLogger() {
                   </button>
 
                   {/* Per-exercise notes */}
-                  <div className="exercise-note-box mt-1">
+                  <div className="exercise-note-field mt-1">
+                    <span className="exercise-note-icon">&#9998;</span>
                     <input
                       type="text"
                       value={ex.notes || ''}
                       onChange={(e) => updateExerciseNotes(exIdx, e.target.value)}
-                      placeholder="Muistiinpano tähän liikkeeseen..."
+                      placeholder="Lisää muistiinpano..."
                     />
                   </div>
 
