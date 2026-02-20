@@ -688,7 +688,26 @@ export default function WorkoutLogger() {
                               {format(parseISO(entry.date), 'd.M.', { locale: fi })}
                             </span>
                             {entry.skipped ? (
-                              <span className="badge badge-muted badge-xs">Skipattu</span>
+                              <>
+                                <span className="badge badge-muted badge-xs">Skipattu</span>
+                                <div className="recent-history-actions">
+                                  {hasNotes && (
+                                    <button
+                                      className="note-info-btn"
+                                      onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
+                                      title="Muistiinpanot"
+                                    >
+                                      {isNoteExpanded ? '✕' : 'i'}
+                                    </button>
+                                  )}
+                                  <button
+                                    className="btn btn-ghost btn-sm history-edit-btn"
+                                    onClick={() => startEditingHistory(exIdx, entry)}
+                                  >
+                                    ✎
+                                  </button>
+                                </div>
+                              </>
                             ) : isSubstitute ? (
                               <>
                                 <span className="badge badge-warning badge-xs">{entry.exerciseName}</span>
