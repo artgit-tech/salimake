@@ -30,7 +30,7 @@ interface DraftData {
 export default function WorkoutLogger() {
   const { programId, dayId } = useParams<{ programId: string; dayId: string }>();
   const navigate = useNavigate();
-  const { programs, workoutLogs, saveWorkoutLog, loading } = useData();
+  const { programs, workoutLogs, saveWorkoutLog, deleteWorkoutLog, loading } = useData();
   const program = programs.find((p) => p.id === programId);
   const day = program?.days.find((d) => d.id === dayId);
   const startTime = useRef(Date.now());
@@ -393,6 +393,40 @@ export default function WorkoutLogger() {
     } catch (err) {
       console.error('Muokkauksen tallennus epäonnistui:', err);
       alert('Muokkauksen tallentaminen epäonnistui.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Delete a historical exercise entry
+  const deleteHistoryExercise = async (exIdx: number) => {
+    const editing = editingHistory.get(exIdx);
+    if (!editing || saving) return;
+    if (!window.confirm('Haluatko varmasti poistaa tämän merkinnän? Tätä ei voi perua.')) return;
+    setSaving(true);
+    try {
+      const log = workoutLogs.find((l) => l.id === editing.logId);
+      if (!log) throw new Error('Log not found');
+      const updatedExercises = log.exercises.filter(
+        (pe) =>
+          pe.exerciseName !== exercises[exIdx].exerciseName &&
+          pe.exerciseId !== exercises[exIdx].exerciseId &&
+          pe.originalExerciseId !== exercises[exIdx].exerciseId
+      );
+      if (updatedExercises.length === 0) {
+        // No exercises left — delete the entire log
+        await deleteWorkoutLog(log.id);
+      } else {
+        const updatedLog: WorkoutLog = {
+          ...log,
+          exercises: updatedExercises,
+        };
+        await saveWorkoutLog(updatedLog);
+      }
+      cancelEditingHistory(exIdx);
+    } catch (err) {
+      console.error('Merkinnän poisto epäonnistui:', err);
+      alert('Merkinnän poistaminen epäonnistui.');
     } finally {
       setSaving(false);
     }
@@ -831,7 +865,7 @@ export default function WorkoutLogger() {
 
                   {/* Action buttons */}
                   {editingHistory.has(exIdx) ? (
-                    <div className="flex gap-sm mt-1">
+                    <div className="flex gap-sm mt-1" style={{ flexWrap: 'wrap' }}>
                       <button
                         className="btn btn-primary btn-sm"
                         onClick={() => saveEditedHistory(exIdx)}
@@ -845,6 +879,14 @@ export default function WorkoutLogger() {
                         disabled={saving}
                       >
                         Peruuta
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => deleteHistoryExercise(exIdx)}
+                        disabled={saving}
+                        style={{ marginLeft: 'auto' }}
+                      >
+                        Poista
                       </button>
                     </div>
                   ) : (
