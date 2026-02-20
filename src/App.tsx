@@ -36,7 +36,7 @@ function AppContent() {
             <NavLink to="/" className="app-logo">
               SaliMake
             </NavLink>
-            <nav>
+            <nav className="desktop-nav">
               <NavLink to="/" end>
                 Etusivu
               </NavLink>
@@ -72,6 +72,28 @@ function AppContent() {
             <Route path="/measurements" element={<Measurements />} />
           </Routes>
         </main>
+        <nav className="bottom-nav">
+          <NavLink to="/" end>
+            <span className="nav-icon">&#9750;</span>
+            Etusivu
+          </NavLink>
+          <NavLink to="/programs">
+            <span className="nav-icon">&#9776;</span>
+            Ohjelmat
+          </NavLink>
+          <NavLink to="/history">
+            <span className="nav-icon">&#9201;</span>
+            Historia
+          </NavLink>
+          <NavLink to="/weight">
+            <span className="nav-icon">&#9878;</span>
+            Paino
+          </NavLink>
+          <NavLink to="/templates">
+            <span className="nav-icon">&#9733;</span>
+            Kirjasto
+          </NavLink>
+        </nav>
       </div>
     </DataProvider>
   );

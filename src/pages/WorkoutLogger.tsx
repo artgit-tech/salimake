@@ -589,7 +589,7 @@ export default function WorkoutLogger() {
 
             {/* Expanded content */}
             {isExpanded && (
-              <>
+              <div className="accordion-content">
                 {/* Template notes + links - directly below title */}
                 {hasTemplateInfo && (
                   <div className="mt-1">
@@ -638,6 +638,12 @@ export default function WorkoutLogger() {
                       const isNoteExpanded = expandedNotes === noteKey;
                       const isSubstitute = entry.wasSubstitute || entry.exerciseName !== templateEx?.name;
 
+                      // Weight trend: compare max weight with previous entry
+                      const prevEntry = hIdx > 0 ? recentHistory[hIdx - 1] : null;
+                      const maxWeight = entry.skipped ? 0 : Math.max(...entry.sets.map((s) => s.weight));
+                      const prevMaxWeight = prevEntry && !prevEntry.skipped ? Math.max(...prevEntry.sets.map((s) => s.weight)) : 0;
+                      const weightDiff = prevEntry && maxWeight > 0 && prevMaxWeight > 0 ? maxWeight - prevMaxWeight : 0;
+
                       return (
                         <div key={hIdx} className="recent-history-row">
                           <div className="recent-history-line">
@@ -658,6 +664,11 @@ export default function WorkoutLogger() {
                                       {s.weight}kg×{s.reps}
                                     </span>
                                   ))}
+                                  {weightDiff !== 0 && (
+                                    <span className={weightDiff > 0 ? 'trend-up' : 'trend-down'}>
+                                      {weightDiff > 0 ? '+' : ''}{weightDiff}
+                                    </span>
+                                  )}
                                 </>
                               )}
                             </span>
@@ -778,8 +789,7 @@ export default function WorkoutLogger() {
                         }
                       />
                       <button
-                        className="btn btn-danger btn-sm"
-                        style={{ padding: '0.25rem' }}
+                        className="set-delete-btn"
                         onClick={() => removeSet(exIdx, setIdx)}
                       >
                         ×
@@ -841,7 +851,7 @@ export default function WorkoutLogger() {
                     </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
           </div>
         );

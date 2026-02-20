@@ -7,11 +7,18 @@
   --text-muted: #9ca3af;
   --primary: #6366f1;
   --primary-hover: #818cf8;
+  --primary-glow: rgba(99, 102, 241, 0.25);
   --danger: #ef4444;
   --danger-hover: #f87171;
   --success: #22c55e;
+  --success-glow: rgba(34, 197, 94, 0.2);
   --warning: #f59e0b;
-  --radius: 8px;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 0 3px var(--primary-glow);
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -25,6 +32,7 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
@@ -42,7 +50,7 @@ a:hover {
   color: var(--primary-hover);
 }
 
-/* Layout */
+/* ===== Layout ===== */
 .app-layout {
   display: flex;
   flex-direction: column;
@@ -56,6 +64,8 @@ a:hover {
   position: sticky;
   top: 0;
   z-index: 100;
+  backdrop-filter: blur(12px);
+  background: rgba(26, 29, 39, 0.85);
 }
 
 .header-inner {
@@ -80,11 +90,11 @@ nav {
 
 nav a {
   padding: 0.5rem 0.75rem;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 0.875rem;
   font-weight: 500;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--transition), color var(--transition);
 }
 
 nav a:hover,
@@ -99,33 +109,104 @@ nav a.active {
   width: 100%;
   margin: 0 auto;
   padding: 1.5rem 1rem;
+  padding-bottom: 5.5rem; /* space for bottom nav */
 }
 
-/* Cards */
+/* ===== Mobile Bottom Navigation ===== */
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(26, 29, 39, 0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    z-index: 100;
+    padding: 0.35rem 0.25rem;
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+    justify-content: space-around;
+  }
+
+  .bottom-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color var(--transition);
+    min-width: 3.5rem;
+  }
+
+  .bottom-nav a.active {
+    color: var(--primary);
+  }
+
+  .bottom-nav a:hover {
+    color: var(--text);
+  }
+
+  .bottom-nav .nav-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  /* Hide desktop nav links on mobile, keep logo + logout */
+  .desktop-nav {
+    display: none;
+  }
+}
+
+/* ===== Cards ===== */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.25rem;
   margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.card:hover {
+  border-color: #3d4160;
 }
 
 .card h3 {
   margin-bottom: 0.75rem;
 }
 
-/* Buttons */
+/* ===== Buttons ===== */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--transition), transform 0.1s, box-shadow var(--transition);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-primary {
@@ -133,8 +214,9 @@ nav a.active {
   color: #fff;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: var(--primary-hover);
+  box-shadow: 0 2px 8px var(--primary-glow);
 }
 
 .btn-danger {
@@ -142,7 +224,7 @@ nav a.active {
   color: #fff;
 }
 
-.btn-danger:hover {
+.btn-danger:hover:not(:disabled) {
   background: var(--danger-hover);
 }
 
@@ -152,9 +234,10 @@ nav a.active {
   border: 1px solid var(--border);
 }
 
-.btn-ghost:hover {
+.btn-ghost:hover:not(:disabled) {
   background: var(--bg-input);
   color: var(--text);
+  border-color: #3d4160;
 }
 
 .btn-sm {
@@ -162,7 +245,7 @@ nav a.active {
   font-size: 0.8rem;
 }
 
-/* Forms */
+/* ===== Forms ===== */
 .form-group {
   margin-bottom: 1rem;
 }
@@ -184,17 +267,18 @@ select {
   padding: 0.5rem 0.75rem;
   background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--text);
   font-size: 0.875rem;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 input:focus,
 textarea:focus,
 select:focus {
   border-color: var(--primary);
+  box-shadow: var(--shadow-glow);
 }
 
 textarea {
@@ -202,7 +286,7 @@ textarea {
   min-height: 60px;
 }
 
-/* Tables */
+/* ===== Tables ===== */
 .table-wrap {
   overflow-x: auto;
 }
@@ -224,7 +308,7 @@ th {
   font-weight: 500;
 }
 
-/* Utility */
+/* ===== Utility ===== */
 .flex {
   display: flex;
 }
@@ -287,14 +371,14 @@ th {
 .badge {
   display: inline-block;
   padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 500;
   background: var(--bg-input);
   color: var(--text-muted);
 }
 
-/* Dashboard stats */
+/* ===== Dashboard stats ===== */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -307,6 +391,7 @@ th {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-card .stat-label {
@@ -320,13 +405,14 @@ th {
   font-weight: 700;
 }
 
-/* Exercise row in program editor */
+/* ===== Exercise row in program editor ===== */
 .exercise-row {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
   margin-bottom: 0.75rem;
+  transition: border-color var(--transition);
 }
 
 .exercise-row .exercise-header {
@@ -343,7 +429,6 @@ th {
   align-items: end;
 }
 
-/* New exercise field layouts */
 .exercise-fields-2col {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -379,12 +464,19 @@ th {
   border-color: var(--primary);
 }
 
-/* Exercise number */
+/* Exercise number - rounded badge */
 .exercise-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--bg-input);
   font-weight: 600;
   color: var(--text-muted);
-  font-size: 0.9rem;
-  min-width: 1.5rem;
+  font-size: 0.8rem;
+  flex-shrink: 0;
 }
 
 /* Move buttons (up/down arrows) */
@@ -402,7 +494,7 @@ th {
   padding: 0;
   font-size: 0.65rem;
   line-height: 1;
-  transition: color 0.15s;
+  transition: color var(--transition);
 }
 
 .btn-icon:hover:not(:disabled) {
@@ -430,12 +522,14 @@ th {
   margin-bottom: 0.5rem;
 }
 
-/* Workout logger header */
+/* ===== Workout Logger ===== */
+
+/* Exercise logger header */
 .exercise-logger-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 /* Exercise select (for switching to alternatives) */
@@ -444,12 +538,12 @@ th {
   padding: 0.4rem 0.75rem;
   background: var(--bg-input);
   border: 1px dashed var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--text);
   font-size: 0.85rem;
 }
 
-/* Badge variant for substitute exercises */
+/* Badge variants */
 .badge-warning {
   background: var(--warning);
   color: #000;
@@ -469,6 +563,7 @@ th {
 .card-saved {
   border-color: var(--success);
   border-left: 3px solid var(--success);
+  box-shadow: 0 0 0 1px var(--success-glow), 0 2px 8px var(--success-glow);
 }
 
 /* Previous workout data inline */
@@ -476,7 +571,7 @@ th {
   margin-top: 0.35rem;
   padding: 0.4rem 0.75rem;
   background: var(--bg-input);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   border-left: 2px solid var(--primary);
 }
 
@@ -494,6 +589,7 @@ th {
 
 .exercise-note-box input:focus {
   border-color: var(--warning) !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
 }
 
 .exercise-note-box input::placeholder {
@@ -501,19 +597,23 @@ th {
   opacity: 0.7;
 }
 
-/* Logging section - visually distinct area for set logging */
+/* Logging section - visually distinct area */
 .logging-section {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.75rem;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
 }
 
 .logging-section-header {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border);
+}
+
+.logging-section-header .text-muted {
+  color: var(--primary-hover);
 }
 
 /* Compact date input for logging section */
@@ -521,7 +621,7 @@ th {
   padding: 0.25rem 0.5rem;
   background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--text);
   font-size: 0.8rem;
   width: auto;
@@ -529,6 +629,7 @@ th {
 
 .date-input-sm:focus {
   border-color: var(--primary);
+  box-shadow: var(--shadow-glow);
   outline: none;
 }
 
@@ -559,7 +660,7 @@ th {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.3rem 0;
+  padding: 0.35rem 0;
 }
 
 .recent-history-notes {
@@ -571,7 +672,22 @@ th {
   font-style: italic;
 }
 
-/* Note info button (inline, mobile-friendly) */
+/* Weight trend indicator */
+.trend-up {
+  color: var(--success);
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+
+.trend-down {
+  color: var(--danger);
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+
+/* Note info button */
 .note-info-btn {
   display: inline-flex;
   align-items: center;
@@ -587,7 +703,7 @@ th {
   font-style: normal;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
 
 .note-info-btn:hover {
@@ -616,7 +732,82 @@ th {
   to { opacity: 0.8; }
 }
 
-/* History page */
+/* ===== Accordion animation ===== */
+.accordion-content {
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Workout log sets ===== */
+.set-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 36px;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.25rem 0;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+/* Zebra striping */
+.set-row:nth-child(even):not(.set-row-header) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.set-row .set-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0 auto;
+}
+
+/* Softer delete button for sets */
+.set-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  margin: 0 auto;
+}
+
+.set-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
+/* Set row header */
+.set-row-header {
+  margin-bottom: 0.15rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ===== History page ===== */
 .history-exercise {
   padding: 0.75rem 0;
   border-bottom: 1px solid var(--border);
@@ -640,49 +831,12 @@ th {
   gap: 1rem;
 }
 
-@media (max-width: 640px) {
-  .exercise-fields {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .exercise-fields-2col {
-    grid-template-columns: 1fr;
-  }
-
-  .exercise-fields-4col {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .alternative-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .alternative-row .btn {
-    align-self: flex-end;
-  }
-}
-
-/* Workout log sets */
-.set-row {
-  display: grid;
-  grid-template-columns: 40px 1fr 1fr 40px;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.set-row .set-num {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
-
-/* Modal */
+/* ===== Modal ===== */
 .modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -699,13 +853,14 @@ th {
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: var(--shadow-md);
 }
 
 .modal h2 {
   margin-bottom: 1rem;
 }
 
-/* Loading spinner */
+/* ===== Loading spinner ===== */
 .loading-spinner {
   width: 36px;
   height: 36px;
@@ -720,7 +875,7 @@ th {
   to { transform: rotate(360deg); }
 }
 
-/* Login page */
+/* ===== Login page ===== */
 .login-page {
   display: flex;
   align-items: center;
@@ -737,6 +892,7 @@ th {
   text-align: center;
   max-width: 380px;
   width: 100%;
+  box-shadow: var(--shadow-md);
 }
 
 .login-logo {
@@ -758,13 +914,13 @@ th {
   gap: 0.75rem;
   padding: 0.75rem 1.5rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: var(--bg-input);
   color: var(--text);
   font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--transition), border-color var(--transition);
   width: 100%;
   justify-content: center;
 }
@@ -795,14 +951,14 @@ th {
 /* Logout button in nav */
 .btn-logout {
   padding: 0.5rem 0.75rem;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 0.875rem;
   font-weight: 500;
   background: none;
   border: none;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--transition), color var(--transition);
   white-space: nowrap;
 }
 
@@ -821,7 +977,7 @@ th {
   border-radius: var(--radius);
   margin-bottom: 0.5rem;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--transition), border-color var(--transition);
 }
 
 .template-picker-item:hover {
@@ -860,6 +1016,7 @@ th {
   font-size: 0.75rem;
   color: var(--primary) !important;
   text-decoration: none;
+  transition: background var(--transition);
 }
 
 .exercise-link-chip:hover {
@@ -882,6 +1039,7 @@ th {
   border-radius: var(--radius);
   padding: 0.5rem 0.75rem;
   margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
 }
 
 /* Large button variant */
@@ -890,12 +1048,31 @@ th {
   font-size: 1rem;
 }
 
-/* Set row header */
-.set-row-header {
-  margin-bottom: 0.25rem;
+/* ===== Desktop responsive ===== */
+@media (max-width: 640px) {
+  .exercise-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .exercise-fields-2col {
+    grid-template-columns: 1fr;
+  }
+
+  .exercise-fields-4col {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .alternative-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .alternative-row .btn {
+    align-self: flex-end;
+  }
 }
 
-/* Responsive */
+/* ===== Mobile responsive ===== */
 @media (max-width: 640px) {
   nav a {
     padding: 0.5rem;
@@ -909,6 +1086,7 @@ th {
 
   .app-main {
     padding: 1rem 0.75rem;
+    padding-bottom: 5.5rem;
   }
 
   .hide-mobile {
