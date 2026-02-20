@@ -584,7 +584,7 @@ th {
   color: var(--text-muted);
   font-size: 0.7rem;
   font-weight: 600;
-  font-style: italic;
+  font-style: normal;
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s, color 0.15s;

@@ -682,7 +682,7 @@ export default function WorkoutLogger() {
                           {isNoteExpanded && hasNotes && (
                             <div className="recent-history-notes">
                               {entry.notes && (
-                                <span className="text-sm">Liike: {entry.notes}</span>
+                                <span className="text-sm">Muistiinpanot: {entry.notes}</span>
                               )}
                               {entry.workoutNotes && (
                                 <span className="text-sm">Treeni: {entry.workoutNotes}</span>
