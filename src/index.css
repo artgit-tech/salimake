@@ -574,17 +574,13 @@ th {
   color: #000;
 }
 
-.card-saved .badge-success {
-  animation: badgeFadeOut 4s ease-out forwards;
-}
-
-@keyframes badgeFadeOut {
-  0%, 40% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
+.saved-badge {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.5rem;
+  z-index: 1;
+  font-size: 0.65rem;
+  pointer-events: none;
 }
 
 .badge-muted {

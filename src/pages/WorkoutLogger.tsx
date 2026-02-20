@@ -585,7 +585,10 @@ export default function WorkoutLogger() {
         const hasMore = allHistory.length > limit;
 
         return (
-          <div key={`${ex.exerciseId}-${exIdx}`} className={`card${isSaved ? ' card-saved' : ''}`}>
+          <div key={`${ex.exerciseId}-${exIdx}`} className={`card${isSaved ? ' card-saved' : ''}`} style={{ position: 'relative' }}>
+            {isSaved && (
+              <span className="badge badge-success saved-badge">tallennettu</span>
+            )}
             {/* Clickable exercise header - always visible */}
             <div
               className="exercise-logger-header"
@@ -607,9 +610,6 @@ export default function WorkoutLogger() {
                 </div>
               </div>
               <div className="exercise-header-right">
-                {isSaved && (
-                  <span className="badge badge-success">tallennettu</span>
-                )}
                 <span className="badge">
                   {currentOption?.sets ?? templateEx?.sets ?? '?'}×{currentOption?.reps ?? templateEx?.reps ?? '?'}
                 </span>
