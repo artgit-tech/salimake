@@ -43,6 +43,7 @@ export default function WorkoutLogger() {
   const [showTemplateInfo, setShowTemplateInfo] = useState<Set<number>>(new Set());
   const [draftStatus, setDraftStatus] = useState<string>('');
   const [workoutDate, setWorkoutDate] = useState(new Date().toISOString().split('T')[0]);
+  const [historyLimit, setHistoryLimit] = useState<Map<number, number>>(new Map());
 
   // Per-exercise editing state: exIdx -> editing info
   const [editingHistory, setEditingHistory] = useState<Map<number, {
@@ -267,9 +268,9 @@ export default function WorkoutLogger() {
     });
   };
 
-  // Get last 6 results for a specific exercise across all previous logs
-  // Returns results in chronological order (oldest first, newest last)
-  const getRecentHistory = (exerciseName: string, exerciseId: string) => {
+  // Get all results for a specific exercise across all previous logs
+  // Returns newest first (same order as prevLogs)
+  const getAllHistory = (exerciseName: string, exerciseId: string) => {
     const results: {
       logId: string;
       date: string;
@@ -283,7 +284,6 @@ export default function WorkoutLogger() {
     }[] = [];
 
     for (const log of prevLogs) {
-      if (results.length >= 6) break;
       const loggedExIdx = log.exercises.findIndex(
         (pe) =>
           pe.exerciseName === exerciseName ||
@@ -305,8 +305,7 @@ export default function WorkoutLogger() {
         });
       }
     }
-    // Reverse: oldest first, newest last
-    return results.reverse();
+    return results;
   };
 
   // Start editing a historical entry for a specific exercise
@@ -579,8 +578,11 @@ export default function WorkoutLogger() {
         const exerciseLinks = templateEx?.links;
         const hasTemplateInfo = !!(templateEx?.notes || (exerciseLinks && exerciseLinks.length > 0));
 
-        // Get last 6 results for this exercise (oldest first)
-        const recentHistory = getRecentHistory(ex.exerciseName, ex.exerciseId);
+        // Get all history for this exercise (newest first)
+        const allHistory = getAllHistory(ex.exerciseName, ex.exerciseId);
+        const limit = historyLimit.get(exIdx) ?? 6;
+        const visibleHistory = allHistory.slice(0, limit);
+        const hasMore = allHistory.length > limit;
 
         return (
           <div key={`${ex.exerciseId}-${exIdx}`} className={`card${isSaved ? ' card-saved' : ''}`}>
@@ -660,119 +662,136 @@ export default function WorkoutLogger() {
                   </div>
                 )}
 
-                {/* Recent history - last 6 results, oldest first */}
-                {recentHistory.length > 0 && !editingHistory.has(exIdx) && (
+                {/* Recent history - newest first, expandable */}
+                {allHistory.length > 0 && !editingHistory.has(exIdx) && (
                   <div className="recent-history mt-1 mb-1">
-                    <div className="recent-history-title">Viimeisimmät tulokset</div>
-                    {recentHistory.map((entry, hIdx) => {
-                      const noteKey = `${exIdx}-${ex.exerciseId}-${entry.date}-${hIdx}`;
-                      const hasNotes = !!(entry.notes || entry.workoutNotes);
-                      const isNoteExpanded = expandedNotes === noteKey;
-                      const isSubstitute = entry.wasSubstitute || entry.exerciseName !== templateEx?.name;
+                    <div className="recent-history-title">
+                      Viimeisimmät tulokset ({allHistory.length})
+                    </div>
+                    <div className={visibleHistory.length > 6 ? 'recent-history-scroll' : ''}>
+                      {visibleHistory.map((entry, hIdx) => {
+                        const noteKey = `${exIdx}-${ex.exerciseId}-${entry.date}-${hIdx}`;
+                        const hasNotes = !!(entry.notes || entry.workoutNotes);
+                        const isNoteExpanded = expandedNotes === noteKey;
+                        const isSubstitute = entry.wasSubstitute || entry.exerciseName !== templateEx?.name;
 
-                      // Format sets compactly: if all sets identical show "3×5 @ 60kg"
-                      const formatSets = (sets: { weight: number; reps: number }[]) => {
-                        const allSame = sets.length > 1 && sets.every(
-                          (s) => s.weight === sets[0].weight && s.reps === sets[0].reps
-                        );
-                        if (allSame) {
-                          return `${sets.length}×${sets[0].reps} @ ${sets[0].weight} kg`;
-                        }
-                        return sets.map((s) => `${s.weight}×${s.reps}`).join(' / ');
-                      };
+                        // Format sets compactly: if all sets identical show "3×5 @ 60kg"
+                        const formatSets = (sets: { weight: number; reps: number }[]) => {
+                          const allSame = sets.length > 1 && sets.every(
+                            (s) => s.weight === sets[0].weight && s.reps === sets[0].reps
+                          );
+                          if (allSame) {
+                            return `${sets.length}×${sets[0].reps} @ ${sets[0].weight} kg`;
+                          }
+                          return sets.map((s) => `${s.weight}×${s.reps}`).join(' / ');
+                        };
 
-                      return (
-                        <div key={hIdx} className="recent-history-row">
-                          <div className="recent-history-top">
-                            <span className="recent-history-date">
-                              {format(parseISO(entry.date), 'd.M.', { locale: fi })}
-                            </span>
-                            {entry.skipped ? (
-                              <>
-                                <span className="badge badge-muted badge-xs">Skipattu</span>
-                                <div className="recent-history-actions">
-                                  {hasNotes && (
+                        return (
+                          <div key={hIdx} className="recent-history-row">
+                            <div className="recent-history-top">
+                              <span className="recent-history-date">
+                                {format(parseISO(entry.date), 'd.M.', { locale: fi })}
+                              </span>
+                              {entry.skipped ? (
+                                <>
+                                  <span className="badge badge-muted badge-xs">Skipattu</span>
+                                  <div className="recent-history-actions">
+                                    {hasNotes && (
+                                      <button
+                                        className="note-info-btn"
+                                        onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
+                                        title="Muistiinpanot"
+                                      >
+                                        {isNoteExpanded ? '✕' : 'i'}
+                                      </button>
+                                    )}
                                     <button
-                                      className="note-info-btn"
-                                      onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
-                                      title="Muistiinpanot"
+                                      className="btn btn-ghost btn-sm history-edit-btn"
+                                      onClick={() => startEditingHistory(exIdx, entry)}
                                     >
-                                      {isNoteExpanded ? '✕' : 'i'}
+                                      ✎
                                     </button>
-                                  )}
-                                  <button
-                                    className="btn btn-ghost btn-sm history-edit-btn"
-                                    onClick={() => startEditingHistory(exIdx, entry)}
-                                  >
-                                    ✎
-                                  </button>
-                                </div>
-                              </>
-                            ) : isSubstitute ? (
-                              <>
-                                <span className="badge badge-warning badge-xs">{entry.exerciseName}</span>
-                                <div className="recent-history-actions">
-                                  {hasNotes && (
+                                  </div>
+                                </>
+                              ) : isSubstitute ? (
+                                <>
+                                  <span className="badge badge-warning badge-xs">{entry.exerciseName}</span>
+                                  <div className="recent-history-actions">
+                                    {hasNotes && (
+                                      <button
+                                        className="note-info-btn"
+                                        onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
+                                        title="Muistiinpanot"
+                                      >
+                                        {isNoteExpanded ? '✕' : 'i'}
+                                      </button>
+                                    )}
                                     <button
-                                      className="note-info-btn"
-                                      onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
-                                      title="Muistiinpanot"
+                                      className="btn btn-ghost btn-sm history-edit-btn"
+                                      onClick={() => startEditingHistory(exIdx, entry)}
                                     >
-                                      {isNoteExpanded ? '✕' : 'i'}
+                                      ✎
                                     </button>
-                                  )}
-                                  <button
-                                    className="btn btn-ghost btn-sm history-edit-btn"
-                                    onClick={() => startEditingHistory(exIdx, entry)}
-                                  >
-                                    ✎
-                                  </button>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <span className="recent-history-sets-inline">
-                                  {formatSets(entry.sets)}
-                                </span>
-                                <div className="recent-history-actions">
-                                  {hasNotes && (
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="recent-history-sets-inline">
+                                    {formatSets(entry.sets)}
+                                  </span>
+                                  <div className="recent-history-actions">
+                                    {hasNotes && (
+                                      <button
+                                        className="note-info-btn"
+                                        onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
+                                        title="Muistiinpanot"
+                                      >
+                                        {isNoteExpanded ? '✕' : 'i'}
+                                      </button>
+                                    )}
                                     <button
-                                      className="note-info-btn"
-                                      onClick={() => setExpandedNotes(isNoteExpanded ? null : noteKey)}
-                                      title="Muistiinpanot"
+                                      className="btn btn-ghost btn-sm history-edit-btn"
+                                      onClick={() => startEditingHistory(exIdx, entry)}
                                     >
-                                      {isNoteExpanded ? '✕' : 'i'}
+                                      ✎
                                     </button>
-                                  )}
-                                  <button
-                                    className="btn btn-ghost btn-sm history-edit-btn"
-                                    onClick={() => startEditingHistory(exIdx, entry)}
-                                  >
-                                    ✎
-                                  </button>
-                                </div>
-                              </>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            {/* Sets on second row only for substitute exercises */}
+                            {!entry.skipped && isSubstitute && (
+                              <div className="recent-history-sets">
+                                {formatSets(entry.sets)}
+                              </div>
+                            )}
+                            {isNoteExpanded && hasNotes && (
+                              <div className="recent-history-notes">
+                                {entry.notes && (
+                                  <span><span className="note-icon-inline">&#9998;</span> <em>{entry.notes}</em></span>
+                                )}
+                                {entry.workoutNotes && (
+                                  <span><span className="note-icon-inline">&#9878;</span> <em>{entry.workoutNotes}</em></span>
+                                )}
+                              </div>
                             )}
                           </div>
-                          {/* Sets on second row only for substitute exercises */}
-                          {!entry.skipped && isSubstitute && (
-                            <div className="recent-history-sets">
-                              {formatSets(entry.sets)}
-                            </div>
-                          )}
-                          {isNoteExpanded && hasNotes && (
-                            <div className="recent-history-notes">
-                              {entry.notes && (
-                                <span><span className="note-icon-inline">&#9998;</span> <em>{entry.notes}</em></span>
-                              )}
-                              {entry.workoutNotes && (
-                                <span><span className="note-icon-inline">&#9878;</span> <em>{entry.workoutNotes}</em></span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+                    {hasMore && (
+                      <button
+                        className="btn btn-ghost btn-sm mt-1"
+                        style={{ width: '100%', justifyContent: 'center' }}
+                        onClick={() => setHistoryLimit((prev) => {
+                          const next = new Map(prev);
+                          next.set(exIdx, limit + 10);
+                          return next;
+                        })}
+                      >
+                        Näytä lisää ({allHistory.length - limit} jäljellä)
+                      </button>
+                    )}
                   </div>
                 )}
 
