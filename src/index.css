@@ -533,7 +533,23 @@ th {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0.25rem;
+}
+
+.exercise-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.exercise-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
 }
 
 /* Exercise select (for switching to alternatives) */
@@ -558,6 +574,19 @@ th {
   color: #000;
 }
 
+.card-saved .badge-success {
+  animation: badgeFadeOut 4s ease-out forwards;
+}
+
+@keyframes badgeFadeOut {
+  0%, 40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .badge-muted {
   background: var(--border);
   color: var(--text-muted);
@@ -568,6 +597,22 @@ th {
   border-color: var(--success);
   border-left: 3px solid var(--success);
   box-shadow: 0 0 0 1px var(--success-glow), 0 2px 8px var(--success-glow);
+  animation: savedFadeOut 4s ease-out forwards;
+}
+
+@keyframes savedFadeOut {
+  0%, 40% {
+    border-color: var(--success);
+    border-left-width: 3px;
+    border-left-color: var(--success);
+    box-shadow: 0 0 0 1px var(--success-glow), 0 2px 8px var(--success-glow);
+  }
+  100% {
+    border-color: var(--border);
+    border-left-width: 1px;
+    border-left-color: var(--border);
+    box-shadow: var(--shadow-sm);
+  }
 }
 
 /* Previous workout data inline */

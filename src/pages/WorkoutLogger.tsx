@@ -592,16 +592,13 @@ export default function WorkoutLogger() {
               style={{ cursor: 'pointer' }}
               onClick={() => toggleExercise(exIdx)}
             >
-              <div className="flex gap-sm" style={{ alignItems: 'center' }}>
+              <div className="exercise-header-left">
                 <span className="exercise-number">{exIdx + 1}.</span>
-                <div>
-                  <div className="flex gap-sm" style={{ alignItems: 'center' }}>
-                    <strong>{ex.exerciseName}</strong>
+                <div style={{ minWidth: 0 }}>
+                  <div className="flex gap-sm" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                    <strong style={{ wordBreak: 'break-word' }}>{ex.exerciseName}</strong>
                     {ex.wasSubstitute && (
                       <span className="badge badge-warning">korvaava</span>
-                    )}
-                    {isSaved && (
-                      <span className="badge badge-success">tallennettu</span>
                     )}
                   </div>
                   {ex.equipment && (
@@ -609,13 +606,16 @@ export default function WorkoutLogger() {
                   )}
                 </div>
               </div>
-              <div className="flex gap-sm" style={{ alignItems: 'center' }}>
+              <div className="exercise-header-right">
+                {isSaved && (
+                  <span className="badge badge-success">tallennettu</span>
+                )}
                 <span className="badge">
                   {currentOption?.sets ?? templateEx?.sets ?? '?'}×{currentOption?.reps ?? templateEx?.reps ?? '?'}
                 </span>
                 {/* Weight summary when collapsed */}
                 {!isExpanded && ex.sets.some((s) => s.weight > 0) && (
-                  <span className="text-muted text-sm">
+                  <span className="text-muted text-sm" style={{ whiteSpace: 'nowrap' }}>
                     {ex.sets.filter((s) => s.weight > 0).map((s) => `${s.weight}kg`).join('/')}
                   </span>
                 )}
