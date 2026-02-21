@@ -574,10 +574,10 @@ export default function WorkoutLogger() {
         // Get the current exercise option for display of its specific parameters
         const currentOption = options.find((o) => o.name === ex.exerciseName);
 
-        // Find notes/links for the currently selected exercise (main or alternative)
+        // Find notes/links for the currently selected exercise (main or alternative, no fallback)
         const currentAlt = templateEx?.alternatives?.find((a) => a.name === ex.exerciseName);
-        const exerciseNotes = currentAlt?.notes || templateEx?.notes;
-        const exerciseLinks = currentAlt?.links?.length ? currentAlt.links : templateEx?.links;
+        const exerciseNotes = currentAlt ? currentAlt.notes : templateEx?.notes;
+        const exerciseLinks = currentAlt ? currentAlt.links : templateEx?.links;
         const hasTemplateInfo = !!(exerciseNotes || (exerciseLinks && exerciseLinks.length > 0));
 
         // Get all history for this exercise (newest first)
