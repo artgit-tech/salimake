@@ -488,31 +488,69 @@ th {
   color: #fff;
 }
 
-/* Move buttons (up/down arrows) */
-.move-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.btn-icon {
+/* Trash button for exercise removal */
+.btn-trash {
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 0;
-  font-size: 0.65rem;
-  line-height: 1;
-  transition: color var(--transition);
+  padding: 0.25rem;
+  border-radius: var(--radius);
+  transition: color var(--transition), background var(--transition);
+  flex-shrink: 0;
 }
 
-.btn-icon:hover:not(:disabled) {
-  color: var(--primary);
+.btn-trash:hover {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
 }
 
-.btn-icon:disabled {
-  opacity: 0.3;
-  cursor: default;
+/* Stepper input (number with +/- buttons) */
+.stepper {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.stepper input {
+  border: none;
+  border-radius: 0;
+  text-align: center;
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.1rem;
+  -moz-appearance: textfield;
+  margin: 0;
+}
+
+.stepper input::-webkit-inner-spin-button,
+.stepper input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stepper-btn {
+  background: var(--bg-input);
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background var(--transition);
+  user-select: none;
+}
+
+.stepper-btn:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+.stepper-btn:active {
+  opacity: 0.8;
 }
 
 /* Alternative exercises section */

@@ -68,6 +68,7 @@ export default function ProgramEditor() {
 
   const [program, setProgram] = useState<Program>(existing ?? createProgram());
   const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set());
+  const [collapsedExercises, setCollapsedExercises] = useState<Set<string>>(new Set());
   const [showTemplatePicker, setShowTemplatePicker] = useState<{ dayIdx: number } | null>(null);
   const [templateFilter, setTemplateFilter] = useState('');
 
@@ -235,20 +236,17 @@ export default function ProgramEditor() {
     dragOverItem.current = null;
   };
 
-  const moveExercise = (dayIdx: number, exIdx: number, direction: -1 | 1) => {
-    const newIdx = exIdx + direction;
-    if (newIdx < 0 || newIdx >= program.days[dayIdx].exercises.length) return;
-    setProgram((prev) => {
-      const days = [...prev.days];
-      const exercises = [...days[dayIdx].exercises];
-      [exercises[exIdx], exercises[newIdx]] = [exercises[newIdx], exercises[exIdx]];
-      days[dayIdx] = { ...days[dayIdx], exercises };
-      return { ...prev, days };
+  const toggleExpanded = (exerciseId: string) => {
+    setExpandedExercises((prev) => {
+      const next = new Set(prev);
+      if (next.has(exerciseId)) next.delete(exerciseId);
+      else next.add(exerciseId);
+      return next;
     });
   };
 
-  const toggleExpanded = (exerciseId: string) => {
-    setExpandedExercises((prev) => {
+  const toggleCollapsed = (exerciseId: string) => {
+    setCollapsedExercises((prev) => {
       const next = new Set(prev);
       if (next.has(exerciseId)) next.delete(exerciseId);
       else next.add(exerciseId);
@@ -342,12 +340,12 @@ export default function ProgramEditor() {
               ex={ex}
               exIdx={exIdx}
               dayIdx={dayIdx}
-              totalExercises={day.exercises.length}
               isExpanded={expandedExercises.has(ex.id)}
+              isCollapsed={collapsedExercises.has(ex.id)}
               onToggleExpanded={() => toggleExpanded(ex.id)}
+              onToggleCollapsed={() => toggleCollapsed(ex.id)}
               onUpdate={(partial) => updateExercise(dayIdx, exIdx, partial)}
               onRemove={() => removeExercise(dayIdx, exIdx)}
-              onMove={(dir) => moveExercise(dayIdx, exIdx, dir)}
               onDragStart={() => handleDragStart(dayIdx, exIdx)}
               onDragEnter={() => handleDragEnter(dayIdx, exIdx)}
               onDragEnd={handleDragEnd}
@@ -458,12 +456,12 @@ interface ExerciseEditorProps {
   ex: Exercise;
   exIdx: number;
   dayIdx: number;
-  totalExercises: number;
   isExpanded: boolean;
+  isCollapsed: boolean;
   onToggleExpanded: () => void;
+  onToggleCollapsed: () => void;
   onUpdate: (partial: Partial<Exercise>) => void;
   onRemove: () => void;
-  onMove: (dir: -1 | 1) => void;
   onDragStart: () => void;
   onDragEnter: () => void;
   onDragEnd: () => void;
@@ -478,12 +476,12 @@ interface ExerciseEditorProps {
 function ExerciseEditor({
   ex,
   exIdx,
-  totalExercises,
   isExpanded,
+  isCollapsed,
   onToggleExpanded,
+  onToggleCollapsed,
   onUpdate,
   onRemove,
-  onMove,
   onDragStart,
   onDragEnter,
   onDragEnd,
@@ -496,6 +494,9 @@ function ExerciseEditor({
 }: ExerciseEditorProps) {
   const [linkInput, setLinkInput] = useState('');
 
+  // Summary text for collapsed view
+  const summary = `${ex.sets}×${ex.reps}${ex.restSeconds ? `, ${ex.restSeconds}s lepo` : ''}`;
+
   return (
     <div
       className="exercise-row"
@@ -506,143 +507,168 @@ function ExerciseEditor({
       onDragOver={(e) => e.preventDefault()}
     >
       <div className="exercise-header">
-        <div className="flex gap-sm" style={{ alignItems: 'center' }}>
-          <span className="drag-handle" title="Raahaa järjestääksesi">⠿</span>
+        <div className="flex gap-sm" style={{ alignItems: 'center', minWidth: 0, flex: 1, cursor: 'pointer' }} onClick={onToggleCollapsed}>
+          <span className="drag-handle" title="Raahaa järjestääksesi" onClick={(e) => e.stopPropagation()}>⠿</span>
           <span className="exercise-number">{exIdx + 1}.</span>
-          <div className="move-buttons">
-            <button className="btn-icon" onClick={() => onMove(-1)} disabled={exIdx === 0} title="Siirrä ylös">▲</button>
-            <button className="btn-icon" onClick={() => onMove(1)} disabled={exIdx === totalExercises - 1} title="Siirrä alas">▼</button>
-          </div>
-        </div>
-        <button className="btn btn-danger btn-sm" onClick={onRemove}>Poista</button>
-      </div>
-
-      <div className="exercise-fields-2col">
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Liikkeen nimi</label>
-          <input
-            type="text"
-            value={ex.name}
-            onChange={(e) => onUpdate({ name: e.target.value })}
-            placeholder="esim. Penkkipunnerrus"
-          />
-        </div>
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Väline / suoritustapa</label>
-          <input
-            type="text"
-            value={ex.equipment || ''}
-            onChange={(e) => onUpdate({ equipment: e.target.value })}
-            placeholder="esim. rintaprässi"
-          />
-        </div>
-      </div>
-
-      <div className="exercise-fields-4col mt-1">
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Sarjat</label>
-          <input type="number" value={ex.sets} min={1} onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 1 })} />
-        </div>
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Toistot</label>
-          <input type="text" value={ex.reps} onChange={(e) => onUpdate({ reps: e.target.value })} placeholder="8-12" />
-        </div>
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Lepo (s)</label>
-          <input type="number" value={ex.restSeconds} min={0} step={15} onChange={(e) => onUpdate({ restSeconds: parseInt(e.target.value) || 0 })} />
-        </div>
-      </div>
-
-      <div className="form-group mt-1" style={{ marginBottom: 0 }}>
-        <label>Muistiinpano</label>
-        <input
-          type="text"
-          value={ex.notes || ''}
-          onChange={(e) => onUpdate({ notes: e.target.value })}
-          placeholder="esim. käsien leveys, suoritusvinkit..."
-        />
-      </div>
-
-      <div className="mt-1">
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={onSaveToLibrary}
-          disabled={!ex.name.trim()}
-        >
-          Tallenna kirjastoon
-        </button>
-      </div>
-
-      {/* Expandable section: alternatives + links */}
-      <div className="mt-1">
-        <button className="btn btn-ghost btn-sm" onClick={onToggleExpanded}>
-          {isExpanded ? '▲ Piilota' : '▼ Lisäasetukset'}
-          {((ex.alternatives?.length ?? 0) > 0 || (ex.links?.length ?? 0) > 0) && (
-            <span className="text-muted" style={{ marginLeft: '0.25rem' }}>
-              ({(ex.alternatives?.length ?? 0)} vaihtoehto{(ex.alternatives?.length ?? 0) !== 1 ? 'a' : ''}
-              {(ex.links?.length ?? 0) > 0 ? `, ${ex.links!.length} linkki${ex.links!.length !== 1 ? 'ä' : ''}` : ''})
-            </span>
+          {isCollapsed && (
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <span style={{ fontWeight: 600, wordBreak: 'break-word' }}>{ex.name || <span className="text-muted">Nimetön liike</span>}</span>
+              <span className="text-muted text-sm" style={{ marginLeft: '0.5rem' }}>{summary}</span>
+            </div>
           )}
+        </div>
+        <button
+          className="btn-trash"
+          onClick={onRemove}
+          title="Poista liike"
+          aria-label="Poista liike"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
         </button>
+      </div>
 
-        {isExpanded && (
-          <div className="alternatives-section">
-            {/* Links */}
-            <div className="mb-2">
-              <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
-                Linkit (esim. YouTube-tutoriaalit)
-              </label>
-              {(ex.links || []).map((link, idx) => (
-                <div key={idx} className="flex gap-sm mb-1" style={{ alignItems: 'center' }}>
-                  <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm link-truncate">
-                    {link}
-                  </a>
-                  <button className="btn btn-danger btn-sm" onClick={() => onRemoveLink(idx)}>×</button>
-                </div>
-              ))}
-              <div className="flex gap-sm">
-                <input
-                  type="text"
-                  value={linkInput}
-                  onChange={(e) => setLinkInput(e.target.value)}
-                  placeholder="https://youtube.com/..."
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      onAddLink(linkInput);
-                      setLinkInput('');
-                    }
-                  }}
-                  style={{ flex: 1 }}
-                />
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => { onAddLink(linkInput); setLinkInput(''); }}
-                >
-                  Lisää
-                </button>
+      {!isCollapsed && (
+        <>
+          <div className="exercise-fields-2col">
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Liikkeen nimi</label>
+              <input
+                type="text"
+                value={ex.name}
+                onChange={(e) => onUpdate({ name: e.target.value })}
+                placeholder="esim. Penkkipunnerrus"
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Väline / suoritustapa</label>
+              <input
+                type="text"
+                value={ex.equipment || ''}
+                onChange={(e) => onUpdate({ equipment: e.target.value })}
+                placeholder="esim. rintaprässi"
+              />
+            </div>
+          </div>
+
+          <div className="exercise-fields-4col mt-1">
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Sarjat</label>
+              <div className="stepper">
+                <button className="stepper-btn" onClick={() => onUpdate({ sets: Math.max(1, ex.sets - 1) })}>−</button>
+                <input type="number" value={ex.sets} min={1} onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 1 })} />
+                <button className="stepper-btn" onClick={() => onUpdate({ sets: ex.sets + 1 })}>+</button>
               </div>
             </div>
-
-            {/* Alternatives with full parameters */}
-            <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
-              Vaihtoehtoiset liikkeet
-            </label>
-            {(ex.alternatives || []).map((alt, altIdx) => (
-              <AlternativeEditor
-                key={alt.id}
-                alt={alt}
-                altIdx={altIdx}
-                parentEx={ex}
-                onUpdate={onUpdateAlternative}
-                onRemove={onRemoveAlternative}
-              />
-            ))}
-            <button className="btn btn-ghost btn-sm" onClick={onAddAlternative}>
-              + Lisää vaihtoehto
-            </button>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Toistot</label>
+              <input type="text" value={ex.reps} onChange={(e) => onUpdate({ reps: e.target.value })} placeholder="8-12" />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Lepo (s)</label>
+              <div className="stepper">
+                <button className="stepper-btn" onClick={() => onUpdate({ restSeconds: Math.max(0, ex.restSeconds - 15) })}>−</button>
+                <input type="number" value={ex.restSeconds} min={0} step={15} onChange={(e) => onUpdate({ restSeconds: parseInt(e.target.value) || 0 })} />
+                <button className="stepper-btn" onClick={() => onUpdate({ restSeconds: ex.restSeconds + 15 })}>+</button>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+
+          <div className="form-group mt-1" style={{ marginBottom: 0 }}>
+            <label>Muistiinpano</label>
+            <input
+              type="text"
+              value={ex.notes || ''}
+              onChange={(e) => onUpdate({ notes: e.target.value })}
+              placeholder="esim. käsien leveys, suoritusvinkit..."
+            />
+          </div>
+
+          {/* Expandable section: alternatives + links + save to library */}
+          <div className="mt-1">
+            <button className="btn btn-ghost btn-sm" onClick={onToggleExpanded}>
+              {isExpanded ? '▲ Piilota' : '▼ Lisäasetukset'}
+              {((ex.alternatives?.length ?? 0) > 0 || (ex.links?.length ?? 0) > 0) && (
+                <span className="text-muted" style={{ marginLeft: '0.25rem' }}>
+                  ({(ex.alternatives?.length ?? 0)} vaihtoehto{(ex.alternatives?.length ?? 0) !== 1 ? 'a' : ''}
+                  {(ex.links?.length ?? 0) > 0 ? `, ${ex.links!.length} linkki${ex.links!.length !== 1 ? 'ä' : ''}` : ''})
+                </span>
+              )}
+            </button>
+
+            {isExpanded && (
+              <div className="alternatives-section">
+                {/* Save to library */}
+                <div className="mb-2">
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={onSaveToLibrary}
+                    disabled={!ex.name.trim()}
+                  >
+                    Tallenna kirjastoon
+                  </button>
+                </div>
+
+                {/* Links */}
+                <div className="mb-2">
+                  <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
+                    Linkit (esim. YouTube-tutoriaalit)
+                  </label>
+                  {(ex.links || []).map((link, idx) => (
+                    <div key={idx} className="flex gap-sm mb-1" style={{ alignItems: 'center' }}>
+                      <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm link-truncate">
+                        {link}
+                      </a>
+                      <button className="btn btn-danger btn-sm" onClick={() => onRemoveLink(idx)}>×</button>
+                    </div>
+                  ))}
+                  <div className="flex gap-sm">
+                    <input
+                      type="text"
+                      value={linkInput}
+                      onChange={(e) => setLinkInput(e.target.value)}
+                      placeholder="https://youtube.com/..."
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          onAddLink(linkInput);
+                          setLinkInput('');
+                        }
+                      }}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => { onAddLink(linkInput); setLinkInput(''); }}
+                    >
+                      Lisää
+                    </button>
+                  </div>
+                </div>
+
+                {/* Alternatives with full parameters */}
+                <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
+                  Vaihtoehtoiset liikkeet
+                </label>
+                {(ex.alternatives || []).map((alt, altIdx) => (
+                  <AlternativeEditor
+                    key={alt.id}
+                    alt={alt}
+                    altIdx={altIdx}
+                    parentEx={ex}
+                    onUpdate={onUpdateAlternative}
+                    onRemove={onRemoveAlternative}
+                  />
+                ))}
+                <button className="btn btn-ghost btn-sm" onClick={onAddAlternative}>
+                  + Lisää vaihtoehto
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
