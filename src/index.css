@@ -414,7 +414,7 @@ th {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: 1.25rem;
   margin-bottom: 0.75rem;
   transition: border-color var(--transition);
 }
@@ -553,13 +553,51 @@ th {
   opacity: 0.8;
 }
 
-/* Alternative exercises section */
-.alternatives-section {
-  margin-top: 0.5rem;
-  padding: 0.75rem;
+/* Section divider for exercise editor */
+.section-divider {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Exercise name input - primary visual hierarchy */
+.exercise-name-input {
+  font-size: 1rem !important;
+  font-weight: 600;
+}
+
+/* Compact alternative item - one line */
+.alt-compact-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+
+.alt-compact-item:hover {
+  border-color: var(--primary);
+}
+
+.alt-compact-name {
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compact alternative inline edit */
+.alt-compact-edit {
+  padding: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
 }
 
 .alternative-row {

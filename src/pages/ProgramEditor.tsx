@@ -67,7 +67,6 @@ export default function ProgramEditor() {
   const existing = id ? programs.find((p) => p.id === id) : undefined;
 
   const [program, setProgram] = useState<Program>(existing ?? createProgram());
-  const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set());
   const [collapsedExercises, setCollapsedExercises] = useState<Set<string>>(new Set());
   const [showTemplatePicker, setShowTemplatePicker] = useState<{ dayIdx: number } | null>(null);
   const [templateFilter, setTemplateFilter] = useState('');
@@ -236,15 +235,6 @@ export default function ProgramEditor() {
     dragOverItem.current = null;
   };
 
-  const toggleExpanded = (exerciseId: string) => {
-    setExpandedExercises((prev) => {
-      const next = new Set(prev);
-      if (next.has(exerciseId)) next.delete(exerciseId);
-      else next.add(exerciseId);
-      return next;
-    });
-  };
-
   const toggleCollapsed = (exerciseId: string) => {
     setCollapsedExercises((prev) => {
       const next = new Set(prev);
@@ -340,9 +330,7 @@ export default function ProgramEditor() {
               ex={ex}
               exIdx={exIdx}
               dayIdx={dayIdx}
-              isExpanded={expandedExercises.has(ex.id)}
               isCollapsed={collapsedExercises.has(ex.id)}
-              onToggleExpanded={() => toggleExpanded(ex.id)}
               onToggleCollapsed={() => toggleCollapsed(ex.id)}
               onUpdate={(partial) => updateExercise(dayIdx, exIdx, partial)}
               onRemove={() => removeExercise(dayIdx, exIdx)}
@@ -456,9 +444,7 @@ interface ExerciseEditorProps {
   ex: Exercise;
   exIdx: number;
   dayIdx: number;
-  isExpanded: boolean;
   isCollapsed: boolean;
-  onToggleExpanded: () => void;
   onToggleCollapsed: () => void;
   onUpdate: (partial: Partial<Exercise>) => void;
   onRemove: () => void;
@@ -476,9 +462,7 @@ interface ExerciseEditorProps {
 function ExerciseEditor({
   ex,
   exIdx,
-  isExpanded,
   isCollapsed,
-  onToggleExpanded,
   onToggleCollapsed,
   onUpdate,
   onRemove,
@@ -493,8 +477,8 @@ function ExerciseEditor({
   onSaveToLibrary,
 }: ExerciseEditorProps) {
   const [linkInput, setLinkInput] = useState('');
+  const [editingAltIdx, setEditingAltIdx] = useState<number | null>(null);
 
-  // Summary text for collapsed view
   const summary = `${ex.sets}×${ex.reps}${ex.restSeconds ? `, ${ex.restSeconds}s lepo` : ''}`;
 
   return (
@@ -532,11 +516,13 @@ function ExerciseEditor({
 
       {!isCollapsed && (
         <>
+          {/* Name + Equipment */}
           <div className="exercise-fields-2col">
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Liikkeen nimi</label>
               <input
                 type="text"
+                className="exercise-name-input"
                 value={ex.name}
                 onChange={(e) => onUpdate({ name: e.target.value })}
                 placeholder="esim. Penkkipunnerrus"
@@ -553,251 +539,144 @@ function ExerciseEditor({
             </div>
           </div>
 
-          <div className="exercise-fields-4col mt-1">
+          {/* Sets / Reps / Rest — no labels, placeholders only */}
+          <div className="exercise-fields-4col" style={{ marginTop: '0.75rem' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Sarjat</label>
               <div className="stepper">
                 <button className="stepper-btn" onClick={() => onUpdate({ sets: Math.max(1, ex.sets - 1) })}>−</button>
-                <input type="number" value={ex.sets} min={1} onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 1 })} />
+                <input type="number" value={ex.sets} min={1} placeholder="Sarjat" onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 1 })} />
                 <button className="stepper-btn" onClick={() => onUpdate({ sets: ex.sets + 1 })}>+</button>
               </div>
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Toistot</label>
-              <input type="text" value={ex.reps} onChange={(e) => onUpdate({ reps: e.target.value })} placeholder="8-12" />
+              <input type="text" value={ex.reps} onChange={(e) => onUpdate({ reps: e.target.value })} placeholder="Toistot" />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Lepo (s)</label>
               <div className="stepper">
                 <button className="stepper-btn" onClick={() => onUpdate({ restSeconds: Math.max(0, ex.restSeconds - 15) })}>−</button>
-                <input type="number" value={ex.restSeconds} min={0} step={15} onChange={(e) => onUpdate({ restSeconds: parseInt(e.target.value) || 0 })} />
+                <input type="number" value={ex.restSeconds} min={0} step={15} placeholder="Lepo (s)" onChange={(e) => onUpdate({ restSeconds: parseInt(e.target.value) || 0 })} />
                 <button className="stepper-btn" onClick={() => onUpdate({ restSeconds: ex.restSeconds + 15 })}>+</button>
               </div>
             </div>
           </div>
 
-          <div className="form-group mt-1" style={{ marginBottom: 0 }}>
-            <label>Muistiinpano</label>
-            <input
-              type="text"
-              value={ex.notes || ''}
-              onChange={(e) => onUpdate({ notes: e.target.value })}
-              placeholder="esim. käsien leveys, suoritusvinkit..."
-            />
-          </div>
+          {/* --- Divider: Lisäohjeet + Linkit --- */}
+          <div className="section-divider">
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Lisäohjeet</label>
+              <input
+                type="text"
+                value={ex.notes || ''}
+                onChange={(e) => onUpdate({ notes: e.target.value })}
+                placeholder="esim. käsien leveys, suoritusvinkit..."
+              />
+            </div>
 
-          {/* Expandable section: alternatives + links + save to library */}
-          <div className="mt-1">
-            <button className="btn btn-ghost btn-sm" onClick={onToggleExpanded}>
-              {isExpanded ? '▲ Piilota' : '▼ Lisäasetukset'}
-              {((ex.alternatives?.length ?? 0) > 0 || (ex.links?.length ?? 0) > 0) && (
-                <span className="text-muted" style={{ marginLeft: '0.25rem' }}>
-                  ({(ex.alternatives?.length ?? 0)} vaihtoehto{(ex.alternatives?.length ?? 0) !== 1 ? 'a' : ''}
-                  {(ex.links?.length ?? 0) > 0 ? `, ${ex.links!.length} linkki${ex.links!.length !== 1 ? 'ä' : ''}` : ''})
-                </span>
-              )}
-            </button>
-
-            {isExpanded && (
-              <div className="alternatives-section">
-                {/* Save to library */}
-                <div className="mb-2">
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={onSaveToLibrary}
-                    disabled={!ex.name.trim()}
-                  >
-                    Tallenna kirjastoon
-                  </button>
-                </div>
-
-                {/* Links */}
-                <div className="mb-2">
-                  <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
-                    Linkit (esim. YouTube-tutoriaalit)
-                  </label>
-                  {(ex.links || []).map((link, idx) => (
-                    <div key={idx} className="flex gap-sm mb-1" style={{ alignItems: 'center' }}>
-                      <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm link-truncate">
-                        {link}
-                      </a>
-                      <button className="btn btn-danger btn-sm" onClick={() => onRemoveLink(idx)}>×</button>
-                    </div>
-                  ))}
-                  <div className="flex gap-sm">
-                    <input
-                      type="text"
-                      value={linkInput}
-                      onChange={(e) => setLinkInput(e.target.value)}
-                      placeholder="https://youtube.com/..."
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          onAddLink(linkInput);
-                          setLinkInput('');
-                        }
-                      }}
-                      style={{ flex: 1 }}
-                    />
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => { onAddLink(linkInput); setLinkInput(''); }}
-                    >
-                      Lisää
-                    </button>
+            {/* Links inline */}
+            {(ex.links && ex.links.length > 0) && (
+              <div style={{ marginTop: '0.5rem' }}>
+                {ex.links.map((link, idx) => (
+                  <div key={idx} className="flex gap-sm mb-1" style={{ alignItems: 'center' }}>
+                    <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm link-truncate">
+                      {link}
+                    </a>
+                    <button className="btn-trash" onClick={() => onRemoveLink(idx)} title="Poista linkki">×</button>
                   </div>
-                </div>
-
-                {/* Alternatives with full parameters */}
-                <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
-                  Vaihtoehtoiset liikkeet
-                </label>
-                {(ex.alternatives || []).map((alt, altIdx) => (
-                  <AlternativeEditor
-                    key={alt.id}
-                    alt={alt}
-                    altIdx={altIdx}
-                    parentEx={ex}
-                    onUpdate={onUpdateAlternative}
-                    onRemove={onRemoveAlternative}
-                  />
                 ))}
-                <button className="btn btn-ghost btn-sm" onClick={onAddAlternative}>
-                  + Lisää vaihtoehto
-                </button>
               </div>
             )}
+            <div className="flex gap-sm" style={{ marginTop: '0.5rem' }}>
+              <input
+                type="text"
+                value={linkInput}
+                onChange={(e) => setLinkInput(e.target.value)}
+                placeholder="Lisää linkki (esim. YouTube)..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && linkInput.trim()) {
+                    onAddLink(linkInput);
+                    setLinkInput('');
+                  }
+                }}
+                style={{ flex: 1 }}
+              />
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => { if (linkInput.trim()) { onAddLink(linkInput); setLinkInput(''); } }}
+              >
+                Lisää
+              </button>
+            </div>
+          </div>
+
+          {/* Save to library */}
+          <div style={{ marginTop: '0.75rem' }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={onSaveToLibrary}
+              disabled={!ex.name.trim()}
+            >
+              Tallenna kirjastoon
+            </button>
+          </div>
+
+          {/* --- Divider: Vaihtoehtoiset liikkeet --- */}
+          <div className="section-divider">
+            <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+              Vaihtoehtoiset liikkeet
+              {(ex.alternatives?.length ?? 0) > 0 && (
+                <span style={{ marginLeft: '0.25rem' }}>({ex.alternatives!.length})</span>
+              )}
+            </label>
+            {(ex.alternatives || []).map((alt, altIdx) => (
+              <div key={alt.id}>
+                {editingAltIdx === altIdx ? (
+                  <div className="alt-compact-edit mb-1">
+                    <div className="exercise-fields-2col">
+                      <input
+                        type="text"
+                        value={alt.name}
+                        onChange={(e) => onUpdateAlternative(altIdx, { name: e.target.value })}
+                        placeholder="Liikkeen nimi"
+                        autoFocus
+                      />
+                      <input
+                        type="text"
+                        value={alt.equipment || ''}
+                        onChange={(e) => onUpdateAlternative(altIdx, { equipment: e.target.value })}
+                        placeholder="Väline"
+                      />
+                    </div>
+                    <div style={{ marginTop: '0.5rem', textAlign: 'right' }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditingAltIdx(null)}>
+                        Valmis
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="alt-compact-item mb-1" onClick={() => setEditingAltIdx(altIdx)}>
+                    <span className="alt-compact-name">
+                      {alt.name || <span className="text-muted">Nimetön</span>}
+                    </span>
+                    {alt.equipment && (
+                      <span className="text-muted text-sm">{alt.equipment}</span>
+                    )}
+                    <button
+                      className="btn-trash"
+                      onClick={(e) => { e.stopPropagation(); onRemoveAlternative(altIdx); }}
+                      title="Poista vaihtoehto"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+            <button className="btn btn-ghost btn-sm" onClick={onAddAlternative}>
+              + Lisää vaihtoehto
+            </button>
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-// --- Alternative exercise editor with own link state ---
-
-function AlternativeEditor({
-  alt,
-  altIdx,
-  parentEx,
-  onUpdate,
-  onRemove,
-}: {
-  alt: AlternativeExercise;
-  altIdx: number;
-  parentEx: Exercise;
-  onUpdate: (altIdx: number, partial: Partial<AlternativeExercise>) => void;
-  onRemove: (altIdx: number) => void;
-}) {
-  const [altLinkInput, setAltLinkInput] = useState('');
-
-  return (
-    <div className="alt-exercise-card mb-1">
-      <div className="exercise-fields-2col">
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Nimi</label>
-          <input
-            type="text"
-            value={alt.name}
-            onChange={(e) => onUpdate(altIdx, { name: e.target.value })}
-            placeholder="esim. Tasapenkki"
-          />
-        </div>
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Väline</label>
-          <input
-            type="text"
-            value={alt.equipment || ''}
-            onChange={(e) => onUpdate(altIdx, { equipment: e.target.value })}
-            placeholder="esim. vapaapenkki"
-          />
-        </div>
-      </div>
-      <div className="exercise-fields-4col mt-1">
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Sarjat</label>
-          <input
-            type="number"
-            value={alt.sets ?? parentEx.sets}
-            min={1}
-            onChange={(e) => onUpdate(altIdx, { sets: parseInt(e.target.value) || 1 })}
-          />
-        </div>
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Toistot</label>
-          <input
-            type="text"
-            value={alt.reps ?? parentEx.reps}
-            onChange={(e) => onUpdate(altIdx, { reps: e.target.value })}
-            placeholder="8-12"
-          />
-        </div>
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Lepo (s)</label>
-          <input
-            type="number"
-            value={alt.restSeconds ?? parentEx.restSeconds}
-            min={0}
-            step={15}
-            onChange={(e) => onUpdate(altIdx, { restSeconds: parseInt(e.target.value) || 0 })}
-          />
-        </div>
-      </div>
-      <div className="form-group mt-1" style={{ marginBottom: 0 }}>
-        <label>Muistiinpano</label>
-        <input
-          type="text"
-          value={alt.notes || ''}
-          onChange={(e) => onUpdate(altIdx, { notes: e.target.value })}
-          placeholder="esim. käsien leveys, suoritusvinkit..."
-        />
-      </div>
-      {/* Links for alternative */}
-      <div className="mt-1" style={{ marginBottom: 0 }}>
-        <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
-          Linkit
-        </label>
-        {(alt.links || []).map((link, linkIdx) => (
-          <div key={linkIdx} className="flex gap-sm mb-1" style={{ alignItems: 'center' }}>
-            <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm link-truncate">
-              {link}
-            </a>
-            <button
-              className="btn btn-danger btn-sm"
-              onClick={() => {
-                const links = (alt.links || []).filter((_, i) => i !== linkIdx);
-                onUpdate(altIdx, { links });
-              }}
-            >×</button>
-          </div>
-        ))}
-        <div className="flex gap-sm">
-          <input
-            type="text"
-            value={altLinkInput}
-            onChange={(e) => setAltLinkInput(e.target.value)}
-            placeholder="https://youtube.com/..."
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && altLinkInput.trim()) {
-                onUpdate(altIdx, { links: [...(alt.links || []), altLinkInput.trim()] });
-                setAltLinkInput('');
-              }
-            }}
-            style={{ flex: 1 }}
-          />
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => {
-              if (altLinkInput.trim()) {
-                onUpdate(altIdx, { links: [...(alt.links || []), altLinkInput.trim()] });
-                setAltLinkInput('');
-              }
-            }}
-          >Lisää</button>
-        </div>
-      </div>
-      <div className="mt-1" style={{ textAlign: 'right' }}>
-        <button className="btn btn-danger btn-sm" onClick={() => onRemove(altIdx)}>Poista</button>
-      </div>
     </div>
   );
 }
