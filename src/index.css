@@ -678,17 +678,10 @@ th {
   box-shadow: var(--shadow-glow);
 }
 
-/* Indigo set number badges */
-.logging-section .set-num {
-  background: var(--indigo-bg-light);
+/* Indigo set number */
+.logging-section .set-pill-num {
   color: var(--primary-hover);
-  border: 1px solid var(--indigo-border);
-}
-
-.logging-section .set-row-header .set-num {
-  background: none;
-  color: var(--text-muted);
-  border: none;
+  opacity: 0.5;
 }
 
 /* Indigo ghost buttons */
@@ -702,10 +695,6 @@ th {
 }
 
 /* Indigo set delete button */
-.logging-section .set-delete-btn {
-  color: var(--indigo-border);
-}
-
 .logging-section .set-delete-btn:hover {
   background: rgba(239, 68, 68, 0.12);
   color: var(--danger);
@@ -728,10 +717,9 @@ th {
   border-color: var(--indigo-border);
 }
 
-/* Indigo set row header */
-.logging-section .set-row-header {
-  border-bottom-color: var(--indigo-border);
-  border-radius: 0;
+/* Indigo set stepper */
+.logging-section .set-stepper:hover {
+  background: rgba(99, 102, 241, 0.15);
 }
 
 
@@ -936,67 +924,149 @@ th {
   }
 }
 
-/* ===== Workout log sets ===== */
-.set-row {
-  display: grid;
-  grid-template-columns: 40px 1fr 1fr 36px;
-  gap: 0.5rem;
+/* ===== Set pill rows ===== */
+.set-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.set-pill {
+  display: flex;
   align-items: center;
-  padding: 0.25rem 0;
-  border-radius: var(--radius-sm);
+  gap: 0.4rem;
+  background: var(--bg-input);
+  border-radius: 999px;
+  padding: 0.3rem 0.35rem 0.3rem 0.5rem;
   transition: background var(--transition);
 }
 
-.set-row .set-num {
+.logging-section .set-pill {
+  background: var(--indigo-bg-light);
+}
+
+.set-pill-num {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 1rem;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.set-pill-field {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-card);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.logging-section .set-pill-field {
+  background: var(--indigo-bg);
+}
+
+.set-pill-field input[type='number'] {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  text-align: center;
+  padding: 0.35rem 0.15rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  -moz-appearance: textfield;
+  color: var(--text);
+}
+
+.set-pill-field input[type='number']::-webkit-outer-spin-button,
+.set-pill-field input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.set-pill-field input[type='number']::placeholder {
+  color: var(--text-muted);
+  opacity: 0.4;
+  font-weight: 400;
+}
+
+.set-pill-field input[type='number']:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.set-pill-field-reps {
+  max-width: 5.5rem;
+}
+
+/* Stepper +/- buttons */
+.set-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--transition), background var(--transition);
+  border-radius: 50%;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.set-stepper:hover {
+  color: var(--primary);
+  background: var(--primary-glow);
+}
+
+.set-stepper:active {
+  transform: scale(0.92);
+}
+
+/* Delete button — hidden by default, visible on hover/touch */
+.set-delete-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--bg-input);
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin: 0 auto;
-}
-
-/* Softer delete button for sets */
-.set-delete-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 1rem;
+  font-size: 0.85rem;
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
-  margin: 0 auto;
+  transition: background var(--transition), color var(--transition), opacity var(--transition);
+  flex-shrink: 0;
+  opacity: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.set-pill:hover .set-delete-btn,
+.set-pill:focus-within .set-delete-btn {
+  opacity: 1;
+}
+
+/* Always visible on touch devices */
+@media (hover: none) {
+  .set-delete-btn {
+    opacity: 0.5;
+  }
 }
 
 .set-delete-btn:hover {
   background: rgba(239, 68, 68, 0.15);
   color: var(--danger);
-}
-
-/* Set row header */
-.set-row-header {
-  margin-bottom: 0.15rem;
-  padding-bottom: 0.25rem;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-}
-
-.set-row-header .set-num {
-  background: none;
-  border: none;
-  width: auto;
-  height: auto;
-  border-radius: 0;
+  opacity: 1;
 }
 
 /* ===== History page ===== */

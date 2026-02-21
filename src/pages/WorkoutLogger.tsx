@@ -860,45 +860,54 @@ export default function WorkoutLogger() {
                     </select>
                   )}
 
-                  <div className="set-row set-row-header">
-                    <span className="set-num">#</span>
-                    <span className="text-muted text-sm">kg</span>
-                    <span className="text-muted text-sm">Toistot</span>
-                    <span></span>
+                  <div className="set-list">
+                    {ex.sets.map((set, setIdx) => (
+                      <div key={setIdx} className="set-pill">
+                        <span className="set-pill-num">{setIdx + 1}</span>
+                        <div className="set-pill-field">
+                          <button
+                            className="set-stepper"
+                            onClick={() => updateSet(exIdx, setIdx, { weight: Math.max(0, (set.weight || 0) - 2.5) })}
+                            type="button"
+                          >−</button>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            value={set.weight || ''}
+                            min={0}
+                            step={2.5}
+                            placeholder="kg"
+                            onChange={(e) =>
+                              updateSet(exIdx, setIdx, { weight: parseFloat(e.target.value) || 0 })
+                            }
+                          />
+                          <button
+                            className="set-stepper"
+                            onClick={() => updateSet(exIdx, setIdx, { weight: (set.weight || 0) + 2.5 })}
+                            type="button"
+                          >+</button>
+                        </div>
+                        <div className="set-pill-field set-pill-field-reps">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={set.reps || ''}
+                            min={0}
+                            placeholder="toistot"
+                            onChange={(e) =>
+                              updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0 })
+                            }
+                          />
+                        </div>
+                        <button
+                          className="set-delete-btn"
+                          onClick={() => removeSet(exIdx, setIdx)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
                   </div>
-
-                  {ex.sets.map((set, setIdx) => (
-                    <div key={setIdx} className="set-row">
-                      <span className="set-num">{setIdx + 1}</span>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        value={set.weight || ''}
-                        min={0}
-                        step={0.5}
-                        placeholder="0"
-                        onChange={(e) =>
-                          updateSet(exIdx, setIdx, { weight: parseFloat(e.target.value) || 0 })
-                        }
-                      />
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        value={set.reps || ''}
-                        min={0}
-                        placeholder="0"
-                        onChange={(e) =>
-                          updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0 })
-                        }
-                      />
-                      <button
-                        className="set-delete-btn"
-                        onClick={() => removeSet(exIdx, setIdx)}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
 
                   <button className="btn btn-ghost btn-sm mt-1" onClick={() => addSet(exIdx)}>
                     + Sarja
