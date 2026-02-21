@@ -60,6 +60,52 @@ function createProgram(): Program {
   };
 }
 
+// --- SVG Icon components ---
+
+function IconPencil({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function IconLink({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
+
+function IconBookmark({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+    </svg>
+  );
+}
+
+function IconChevron({ size = 14, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function IconChevronUp({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m18 15-6-6-6 6" />
+    </svg>
+  );
+}
+
+// --- Main component ---
+
 export default function ProgramEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -74,6 +120,8 @@ export default function ProgramEditor() {
   // Drag & drop state
   const dragItem = useRef<{ dayIdx: number; exIdx: number } | null>(null);
   const dragOverItem = useRef<{ dayIdx: number; exIdx: number } | null>(null);
+  const [draggingEx, setDraggingEx] = useState<{ dayIdx: number; exIdx: number } | null>(null);
+  const [dragOverEx, setDragOverEx] = useState<{ dayIdx: number; exIdx: number } | null>(null);
 
   if (loading) {
     return <div className="loading-spinner" />;
@@ -205,34 +253,48 @@ export default function ProgramEditor() {
   // --- Drag & drop reordering ---
   const handleDragStart = (dayIdx: number, exIdx: number) => {
     dragItem.current = { dayIdx, exIdx };
+    setDraggingEx({ dayIdx, exIdx });
   };
 
   const handleDragEnter = (dayIdx: number, exIdx: number) => {
     dragOverItem.current = { dayIdx, exIdx };
+    setDragOverEx({ dayIdx, exIdx });
   };
 
   const handleDragEnd = () => {
-    if (!dragItem.current || !dragOverItem.current) return;
-    const { dayIdx: fromDay, exIdx: fromEx } = dragItem.current;
-    const { dayIdx: toDay, exIdx: toEx } = dragOverItem.current;
+    if (dragItem.current && dragOverItem.current) {
+      const { dayIdx: fromDay, exIdx: fromEx } = dragItem.current;
+      const { dayIdx: toDay, exIdx: toEx } = dragOverItem.current;
 
-    if (fromDay !== toDay) {
-      dragItem.current = null;
-      dragOverItem.current = null;
-      return;
+      if (fromDay === toDay && fromEx !== toEx) {
+        setProgram((prev) => {
+          const days = [...prev.days];
+          const exercises = [...days[fromDay].exercises];
+          const [movedItem] = exercises.splice(fromEx, 1);
+          exercises.splice(toEx, 0, movedItem);
+          days[fromDay] = { ...days[fromDay], exercises };
+          return { ...prev, days };
+        });
+      }
     }
-
-    setProgram((prev) => {
-      const days = [...prev.days];
-      const exercises = [...days[fromDay].exercises];
-      const [movedItem] = exercises.splice(fromEx, 1);
-      exercises.splice(toEx, 0, movedItem);
-      days[fromDay] = { ...days[fromDay], exercises };
-      return { ...prev, days };
-    });
 
     dragItem.current = null;
     dragOverItem.current = null;
+    setDraggingEx(null);
+    setDragOverEx(null);
+  };
+
+  // --- Mobile reorder ---
+  const moveExercise = (dayIdx: number, exIdx: number, direction: 'up' | 'down') => {
+    const newIdx = direction === 'up' ? exIdx - 1 : exIdx + 1;
+    setProgram((prev) => {
+      const days = [...prev.days];
+      const exercises = [...days[dayIdx].exercises];
+      if (newIdx < 0 || newIdx >= exercises.length) return prev;
+      [exercises[exIdx], exercises[newIdx]] = [exercises[newIdx], exercises[exIdx]];
+      days[dayIdx] = { ...days[dayIdx], exercises };
+      return { ...prev, days };
+    });
   };
 
   const toggleCollapsed = (exerciseId: string) => {
@@ -362,6 +424,16 @@ export default function ProgramEditor() {
                   alert('Tallentaminen kirjastoon epäonnistui.');
                 });
               }}
+              isDragging={draggingEx?.dayIdx === dayIdx && draggingEx?.exIdx === exIdx}
+              isDragOver={
+                dragOverEx?.dayIdx === dayIdx &&
+                dragOverEx?.exIdx === exIdx &&
+                !(draggingEx?.dayIdx === dayIdx && draggingEx?.exIdx === exIdx)
+              }
+              onMoveUp={() => moveExercise(dayIdx, exIdx, 'up')}
+              onMoveDown={() => moveExercise(dayIdx, exIdx, 'down')}
+              canMoveUp={exIdx > 0}
+              canMoveDown={exIdx < day.exercises.length - 1}
             />
           ))}
 
@@ -438,7 +510,7 @@ export default function ProgramEditor() {
   );
 }
 
-// --- Extracted exercise editor component for clarity ---
+// --- Exercise editor component ---
 
 interface ExerciseEditorProps {
   ex: Exercise;
@@ -457,6 +529,12 @@ interface ExerciseEditorProps {
   onAddLink: (url: string) => void;
   onRemoveLink: (linkIdx: number) => void;
   onSaveToLibrary: () => void;
+  isDragging: boolean;
+  isDragOver: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }
 
 function ExerciseEditor({
@@ -475,25 +553,65 @@ function ExerciseEditor({
   onAddLink,
   onRemoveLink,
   onSaveToLibrary,
+  isDragging,
+  isDragOver,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
 }: ExerciseEditorProps) {
   const [linkInput, setLinkInput] = useState('');
   const [editingAltIdx, setEditingAltIdx] = useState<number | null>(null);
+  const [showNotes, setShowNotes] = useState(() => {
+    return Boolean(ex.notes?.trim() || (ex.links && ex.links.length > 0));
+  });
+  const [altLinkInput, setAltLinkInput] = useState('');
 
-  const summary = `${ex.sets}×${ex.reps}${ex.restSeconds ? `, ${ex.restSeconds}s lepo` : ''}`;
+  const summary = `${ex.sets}×${ex.reps}`;
+  const notesCount = (ex.notes?.trim() ? 1 : 0) + (ex.links?.length ?? 0);
+
+  // Reps increment/decrement for parent exercise
+  const incrementReps = () => {
+    const num = parseInt(ex.reps);
+    if (!isNaN(num)) onUpdate({ reps: String(num + 1) });
+  };
+  const decrementReps = () => {
+    const num = parseInt(ex.reps);
+    if (!isNaN(num) && num > 1) onUpdate({ reps: String(num - 1) });
+  };
+
+  const openAltEdit = (idx: number) => {
+    setEditingAltIdx(idx);
+    setAltLinkInput('');
+  };
+
+  const closeAltEdit = () => {
+    setEditingAltIdx(null);
+    setAltLinkInput('');
+  };
 
   return (
     <div
-      className="exercise-row"
+      className={`exercise-row${isDragging ? ' exercise-row-dragging' : ''}${isDragOver ? ' exercise-row-drag-over' : ''}`}
       draggable
       onDragStart={onDragStart}
       onDragEnter={onDragEnter}
       onDragEnd={onDragEnd}
       onDragOver={(e) => e.preventDefault()}
     >
+      {/* Header */}
       <div className="exercise-header">
         <div className="flex gap-sm" style={{ alignItems: 'center', minWidth: 0, flex: 1, cursor: 'pointer' }} onClick={onToggleCollapsed}>
           <span className="drag-handle" title="Raahaa järjestääksesi" onClick={(e) => e.stopPropagation()}>⠿</span>
-          <span className="exercise-number">{exIdx + 1}.</span>
+          <div className="move-buttons" onClick={(e) => e.stopPropagation()}>
+            <button className="move-btn" onClick={onMoveUp} disabled={!canMoveUp} title="Siirrä ylös">
+              <IconChevronUp size={14} />
+            </button>
+            <button className="move-btn" onClick={onMoveDown} disabled={!canMoveDown} title="Siirrä alas">
+              <IconChevron size={14} />
+            </button>
+          </div>
+          <span className="exercise-number">{exIdx + 1}</span>
           {isCollapsed && (
             <div style={{ minWidth: 0, flex: 1 }}>
               <span style={{ fontWeight: 600, wordBreak: 'break-word' }}>{ex.name || <span className="text-muted">Nimetön liike</span>}</span>
@@ -539,141 +657,253 @@ function ExerciseEditor({
             </div>
           </div>
 
-          {/* Sets / Reps / Rest — no labels, placeholders only */}
-          <div className="exercise-fields-4col" style={{ marginTop: '0.75rem' }}>
+          {/* Sets + Reps with labels and steppers */}
+          <div className="exercise-fields-2col" style={{ marginTop: '0.75rem' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Sarjat</label>
               <div className="stepper">
                 <button className="stepper-btn" onClick={() => onUpdate({ sets: Math.max(1, ex.sets - 1) })}>−</button>
-                <input type="number" value={ex.sets} min={1} placeholder="Sarjat" onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 1 })} />
+                <input type="number" value={ex.sets} min={1} onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 1 })} />
                 <button className="stepper-btn" onClick={() => onUpdate({ sets: ex.sets + 1 })}>+</button>
               </div>
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <input type="text" value={ex.reps} onChange={(e) => onUpdate({ reps: e.target.value })} placeholder="Toistot" />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Toistot</label>
               <div className="stepper">
-                <button className="stepper-btn" onClick={() => onUpdate({ restSeconds: Math.max(0, ex.restSeconds - 15) })}>−</button>
-                <input type="number" value={ex.restSeconds} min={0} step={15} placeholder="Lepo (s)" onChange={(e) => onUpdate({ restSeconds: parseInt(e.target.value) || 0 })} />
-                <button className="stepper-btn" onClick={() => onUpdate({ restSeconds: ex.restSeconds + 15 })}>+</button>
+                <button className="stepper-btn" onClick={decrementReps}>−</button>
+                <input type="text" value={ex.reps} onChange={(e) => onUpdate({ reps: e.target.value })} />
+                <button className="stepper-btn" onClick={incrementReps}>+</button>
               </div>
             </div>
           </div>
 
-          {/* --- Divider: Lisäohjeet + Linkit --- */}
+          {/* --- Lisäohjeet accordion --- */}
           <div className="section-divider">
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Lisäohjeet</label>
-              <input
-                type="text"
-                value={ex.notes || ''}
-                onChange={(e) => onUpdate({ notes: e.target.value })}
-                placeholder="esim. käsien leveys, suoritusvinkit..."
-              />
-            </div>
-
-            {/* Links inline */}
-            {(ex.links && ex.links.length > 0) && (
-              <div style={{ marginTop: '0.5rem' }}>
-                {ex.links.map((link, idx) => (
-                  <div key={idx} className="flex gap-sm mb-1" style={{ alignItems: 'center' }}>
-                    <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm link-truncate">
-                      {link}
-                    </a>
-                    <button className="btn-trash" onClick={() => onRemoveLink(idx)} title="Poista linkki">×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-sm" style={{ marginTop: '0.5rem' }}>
-              <input
-                type="text"
-                value={linkInput}
-                onChange={(e) => setLinkInput(e.target.value)}
-                placeholder="Lisää linkki (esim. YouTube)..."
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && linkInput.trim()) {
-                    onAddLink(linkInput);
-                    setLinkInput('');
-                  }
-                }}
-                style={{ flex: 1 }}
-              />
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => { if (linkInput.trim()) { onAddLink(linkInput); setLinkInput(''); } }}
-              >
-                Lisää
-              </button>
-            </div>
-          </div>
-
-          {/* Save to library */}
-          <div style={{ marginTop: '0.75rem' }}>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={onSaveToLibrary}
-              disabled={!ex.name.trim()}
-            >
-              Tallenna kirjastoon
-            </button>
-          </div>
-
-          {/* --- Divider: Vaihtoehtoiset liikkeet --- */}
-          <div className="section-divider">
-            <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-              Vaihtoehtoiset liikkeet
-              {(ex.alternatives?.length ?? 0) > 0 && (
-                <span style={{ marginLeft: '0.25rem' }}>({ex.alternatives!.length})</span>
+            <button className="notes-accordion-toggle" onClick={() => setShowNotes(!showNotes)}>
+              <IconChevron size={14} className={`accordion-chevron${showNotes ? ' accordion-chevron-open' : ''}`} />
+              <span>Lisäohjeet</span>
+              {notesCount > 0 && (
+                <span className="badge badge-xs">{notesCount}</span>
               )}
-            </label>
-            {(ex.alternatives || []).map((alt, altIdx) => (
-              <div key={alt.id}>
-                {editingAltIdx === altIdx ? (
-                  <div className="alt-compact-edit mb-1">
-                    <div className="exercise-fields-2col">
-                      <input
-                        type="text"
-                        value={alt.name}
-                        onChange={(e) => onUpdateAlternative(altIdx, { name: e.target.value })}
-                        placeholder="Liikkeen nimi"
-                        autoFocus
-                      />
-                      <input
-                        type="text"
-                        value={alt.equipment || ''}
-                        onChange={(e) => onUpdateAlternative(altIdx, { equipment: e.target.value })}
-                        placeholder="Väline"
-                      />
+            </button>
+
+            {showNotes && (
+              <div className="accordion-content" style={{ marginTop: '0.5rem' }}>
+                {/* Notes with pencil icon */}
+                <div className="field-with-icon">
+                  <span className="field-icon"><IconPencil size={14} /></span>
+                  <input
+                    type="text"
+                    value={ex.notes || ''}
+                    onChange={(e) => onUpdate({ notes: e.target.value })}
+                    placeholder="Muistiinpanot, suoritusvinkit..."
+                    style={{ flex: 1 }}
+                  />
+                </div>
+
+                {/* Links with link icon */}
+                <div style={{ marginTop: '0.5rem' }}>
+                  {(ex.links || []).map((link, idx) => (
+                    <div key={idx} className="flex gap-sm mb-1" style={{ alignItems: 'center', paddingLeft: '1.75rem' }}>
+                      <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm link-truncate">
+                        {link}
+                      </a>
+                      <button className="btn-trash" onClick={() => onRemoveLink(idx)} title="Poista linkki">×</button>
                     </div>
-                    <div style={{ marginTop: '0.5rem', textAlign: 'right' }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setEditingAltIdx(null)}>
-                        Valmis
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="alt-compact-item mb-1" onClick={() => setEditingAltIdx(altIdx)}>
-                    <span className="alt-compact-name">
-                      {alt.name || <span className="text-muted">Nimetön</span>}
-                    </span>
-                    {alt.equipment && (
-                      <span className="text-muted text-sm">{alt.equipment}</span>
-                    )}
+                  ))}
+                  <div className="field-with-icon">
+                    <span className="field-icon"><IconLink size={14} /></span>
+                    <input
+                      type="text"
+                      value={linkInput}
+                      onChange={(e) => setLinkInput(e.target.value)}
+                      placeholder="Lisää linkki (esim. YouTube)..."
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && linkInput.trim()) {
+                          onAddLink(linkInput);
+                          setLinkInput('');
+                        }
+                      }}
+                      style={{ flex: 1 }}
+                    />
                     <button
-                      className="btn-trash"
-                      onClick={(e) => { e.stopPropagation(); onRemoveAlternative(altIdx); }}
-                      title="Poista vaihtoehto"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => { if (linkInput.trim()) { onAddLink(linkInput); setLinkInput(''); } }}
                     >
-                      ×
+                      Lisää
                     </button>
                   </div>
-                )}
+                </div>
               </div>
-            ))}
-            <button className="btn btn-ghost btn-sm" onClick={onAddAlternative}>
-              + Lisää vaihtoehto
-            </button>
+            )}
+          </div>
+
+          {/* --- Vaihtoehtoiset liikkeet --- */}
+          <div className="section-divider">
+            <div className="alt-section-title">
+              Vaihtoehtoiset liikkeet
+              {(ex.alternatives?.length ?? 0) > 0 && (
+                <span style={{ marginLeft: '0.25rem', opacity: 0.7 }}>({ex.alternatives!.length})</span>
+              )}
+            </div>
+
+            {(ex.alternatives || []).map((alt, altIdx) => {
+              const altSets = alt.sets ?? ex.sets;
+              const altReps = alt.reps ?? ex.reps;
+
+              return (
+                <div key={alt.id}>
+                  {editingAltIdx === altIdx ? (
+                    /* --- Expanded alternative edit --- */
+                    <div className="alt-compact-edit mb-1">
+                      <div className="exercise-fields-2col">
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Nimi</label>
+                          <input
+                            type="text"
+                            value={alt.name}
+                            onChange={(e) => onUpdateAlternative(altIdx, { name: e.target.value })}
+                            placeholder="Liikkeen nimi"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Väline</label>
+                          <input
+                            type="text"
+                            value={alt.equipment || ''}
+                            onChange={(e) => onUpdateAlternative(altIdx, { equipment: e.target.value })}
+                            placeholder="Väline"
+                          />
+                        </div>
+                      </div>
+                      <div className="exercise-fields-2col" style={{ marginTop: '0.5rem' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Sarjat</label>
+                          <div className="stepper">
+                            <button className="stepper-btn" onClick={() => onUpdateAlternative(altIdx, { sets: Math.max(1, altSets - 1) })}>−</button>
+                            <input type="number" value={altSets} min={1} onChange={(e) => onUpdateAlternative(altIdx, { sets: parseInt(e.target.value) || 1 })} />
+                            <button className="stepper-btn" onClick={() => onUpdateAlternative(altIdx, { sets: altSets + 1 })}>+</button>
+                          </div>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Toistot</label>
+                          <div className="stepper">
+                            <button className="stepper-btn" onClick={() => {
+                              const n = parseInt(altReps);
+                              if (!isNaN(n) && n > 1) onUpdateAlternative(altIdx, { reps: String(n - 1) });
+                            }}>−</button>
+                            <input type="text" value={altReps} onChange={(e) => onUpdateAlternative(altIdx, { reps: e.target.value })} />
+                            <button className="stepper-btn" onClick={() => {
+                              const n = parseInt(altReps);
+                              if (!isNaN(n)) onUpdateAlternative(altIdx, { reps: String(n + 1) });
+                            }}>+</button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Alt notes */}
+                      <div className="field-with-icon" style={{ marginTop: '0.5rem' }}>
+                        <span className="field-icon"><IconPencil size={14} /></span>
+                        <input
+                          type="text"
+                          value={alt.notes || ''}
+                          onChange={(e) => onUpdateAlternative(altIdx, { notes: e.target.value })}
+                          placeholder="Muistiinpanot..."
+                          style={{ flex: 1 }}
+                        />
+                      </div>
+
+                      {/* Alt links */}
+                      <div style={{ marginTop: '0.5rem' }}>
+                        {(alt.links || []).map((link, linkIdx) => (
+                          <div key={linkIdx} className="flex gap-sm mb-1" style={{ alignItems: 'center', paddingLeft: '1.75rem' }}>
+                            <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm link-truncate">
+                              {link}
+                            </a>
+                            <button
+                              className="btn-trash"
+                              onClick={() => {
+                                const links = (alt.links || []).filter((_, i) => i !== linkIdx);
+                                onUpdateAlternative(altIdx, { links });
+                              }}
+                            >×</button>
+                          </div>
+                        ))}
+                        <div className="field-with-icon">
+                          <span className="field-icon"><IconLink size={14} /></span>
+                          <input
+                            type="text"
+                            value={altLinkInput}
+                            onChange={(e) => setAltLinkInput(e.target.value)}
+                            placeholder="Lisää linkki..."
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && altLinkInput.trim()) {
+                                onUpdateAlternative(altIdx, { links: [...(alt.links || []), altLinkInput.trim()] });
+                                setAltLinkInput('');
+                              }
+                            }}
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => {
+                              if (altLinkInput.trim()) {
+                                onUpdateAlternative(altIdx, { links: [...(alt.links || []), altLinkInput.trim()] });
+                                setAltLinkInput('');
+                              }
+                            }}
+                          >Lisää</button>
+                        </div>
+                      </div>
+
+                      {/* Alt bottom actions */}
+                      <div className="flex-between" style={{ marginTop: '0.5rem' }}>
+                        <button className="btn btn-danger btn-sm" onClick={() => { onRemoveAlternative(altIdx); closeAltEdit(); }}>
+                          Poista
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={closeAltEdit}>
+                          Valmis
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* --- Compact alternative one-liner --- */
+                    <div className="alt-compact-item mb-1" onClick={() => openAltEdit(altIdx)}>
+                      <span className="alt-compact-name">
+                        {alt.name || <span className="text-muted">Nimetön</span>}
+                      </span>
+                      {alt.equipment && (
+                        <span className="text-muted text-sm">{alt.equipment}</span>
+                      )}
+                      <span className="text-muted text-sm">{altSets}×{altReps}</span>
+                      <button
+                        className="btn-trash"
+                        onClick={(e) => { e.stopPropagation(); onRemoveAlternative(altIdx); }}
+                        title="Poista vaihtoehto"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Bottom actions: Lisää vaihtoehto (left) + Tallenna kirjastoon (right) */}
+            <div className="exercise-bottom-actions">
+              <button className="btn btn-ghost btn-sm btn-tall" onClick={onAddAlternative}>
+                + Lisää vaihtoehto
+              </button>
+              <button
+                className="btn btn-save-library btn-sm btn-tall"
+                onClick={onSaveToLibrary}
+                disabled={!ex.name.trim()}
+              >
+                <IconBookmark size={14} />
+                Tallenna kirjastoon
+              </button>
+            </div>
           </div>
         </>
       )}

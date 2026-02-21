@@ -461,11 +461,21 @@ th {
 }
 
 .exercise-row[draggable="true"] {
-  transition: opacity 0.2s, border-color 0.2s;
+  transition: opacity 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .exercise-row[draggable="true"]:hover {
   border-color: var(--primary);
+}
+
+/* Drag & drop visual feedback */
+.exercise-row-dragging {
+  opacity: 0.4;
+}
+
+.exercise-row-drag-over {
+  border-color: var(--primary) !important;
+  box-shadow: inset 0 0 0 1px var(--primary), 0 0 12px var(--primary-glow);
 }
 
 /* Exercise number - rounded badge */
@@ -476,9 +486,9 @@ th {
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 50%;
-  background: var(--bg-input);
+  background: rgba(99, 102, 241, 0.15);
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--primary);
   font-size: 0.8rem;
   flex-shrink: 0;
 }
@@ -553,6 +563,21 @@ th {
   opacity: 0.8;
 }
 
+/* Text input inside stepper (for reps) */
+.stepper input[type='text'] {
+  border: none;
+  border-radius: 0;
+  text-align: center;
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.1rem;
+  margin: 0;
+}
+
+.stepper input:focus {
+  box-shadow: none;
+}
+
 /* Section divider for exercise editor */
 .section-divider {
   margin-top: 0.75rem;
@@ -598,6 +623,123 @@ th {
   background: var(--bg-card);
   border: 1px solid var(--primary);
   border-radius: var(--radius-sm);
+}
+
+/* Alternative section title - indigo and larger */
+.alt-section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+/* Notes accordion toggle button */
+.notes-accordion-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  transition: color var(--transition);
+}
+
+.notes-accordion-toggle:hover {
+  color: var(--text);
+}
+
+/* Field with icon (notes, links) */
+.field-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field-icon {
+  color: var(--text-muted);
+  opacity: 0.6;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Save to library button - amber/gold */
+.btn-save-library {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.btn-save-library:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
+.btn-save-library:disabled {
+  opacity: 0.4;
+}
+
+/* Exercise bottom actions row */
+.exercise-bottom-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+  gap: 0.5rem;
+}
+
+/* Taller button variant */
+.btn-tall {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+/* Mobile reorder buttons */
+.move-buttons {
+  display: none;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.move-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: color var(--transition), background var(--transition);
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+}
+
+.move-btn:hover:not(:disabled) {
+  color: var(--primary);
+  background: var(--primary-glow);
+}
+
+.move-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* Show move buttons on touch devices, hide drag handle */
+@media (hover: none) {
+  .move-buttons {
+    display: flex;
+  }
+  .drag-handle {
+    display: none;
+  }
 }
 
 .alternative-row {
