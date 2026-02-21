@@ -589,7 +589,11 @@ export default function WorkoutLogger() {
         return (
           <div key={`${ex.exerciseId}-${exIdx}`} className={`card${isSaved ? ' card-saved' : ''}`} style={{ position: 'relative' }}>
             {isSaved && (
-              <span className="badge badge-success saved-badge">tallennettu</span>
+              <span className="saved-check" aria-label="tallennettu">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </span>
             )}
             {/* Clickable exercise header - always visible */}
             <div
@@ -888,6 +892,11 @@ export default function WorkoutLogger() {
                           >+</button>
                         </div>
                         <div className="set-pill-field set-pill-field-reps">
+                          <button
+                            className="set-stepper"
+                            onClick={() => updateSet(exIdx, setIdx, { reps: Math.max(0, (set.reps || 0) - 1) })}
+                            type="button"
+                          >−</button>
                           <input
                             type="number"
                             inputMode="numeric"
@@ -898,6 +907,11 @@ export default function WorkoutLogger() {
                               updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0 })
                             }
                           />
+                          <button
+                            className="set-stepper"
+                            onClick={() => updateSet(exIdx, setIdx, { reps: (set.reps || 0) + 1 })}
+                            type="button"
+                          >+</button>
                         </div>
                         <button
                           className="set-delete-btn"

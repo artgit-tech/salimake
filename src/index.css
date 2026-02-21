@@ -574,13 +574,20 @@ th {
   color: #000;
 }
 
-.saved-badge {
+.saved-check {
   position: absolute;
-  top: 0.35rem;
-  right: 0.5rem;
+  top: 0.45rem;
+  right: 0.55rem;
   z-index: 1;
-  font-size: 0.65rem;
   pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--success);
+  color: #fff;
 }
 
 .badge-muted {
@@ -1000,7 +1007,7 @@ th {
 }
 
 .set-pill-field-reps {
-  max-width: 5.5rem;
+  flex: 0.7;
 }
 
 /* Stepper +/- buttons */
