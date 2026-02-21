@@ -483,6 +483,11 @@ th {
   flex-shrink: 0;
 }
 
+.exercise-number-saved {
+  background: var(--success);
+  color: #fff;
+}
+
 /* Move buttons (up/down arrows) */
 .move-buttons {
   display: flex;
@@ -574,21 +579,6 @@ th {
   color: #000;
 }
 
-.saved-check {
-  position: absolute;
-  top: 0.45rem;
-  right: 0.55rem;
-  z-index: 1;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--success);
-  color: #fff;
-}
 
 .badge-muted {
   background: var(--border);

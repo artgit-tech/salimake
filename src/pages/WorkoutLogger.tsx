@@ -83,21 +83,33 @@ export default function WorkoutLogger() {
     }
 
     const initial: LoggedExercise[] = day.exercises.map((ex, idx) => {
+      // Find previous entry: direct match or substitute that references this exercise
       const prevEx = prevLog?.exercises.find(
-        (pe) => pe.exerciseId === ex.id || pe.exerciseName === ex.name
+        (pe) => pe.exerciseId === ex.id || pe.exerciseName === ex.name || pe.originalExerciseId === ex.id
       );
-      const sets: LoggedSet[] = Array.from({ length: ex.sets }, (_, i) => ({
-        reps: prevEx?.sets[i]?.reps ?? (parseInt(ex.reps) || 10),
+
+      // Determine how many sets and what reps to target
+      const usedSubstitute = prevEx && prevEx.wasSubstitute && prevEx.originalExerciseId === ex.id;
+      const matchedAlt = usedSubstitute
+        ? ex.alternatives?.find((a) => a.name === prevEx.exerciseName)
+        : undefined;
+      const targetSets = matchedAlt?.sets ?? ex.sets;
+      const targetReps = parseInt((matchedAlt?.reps ?? ex.reps) || '') || 10;
+
+      const sets: LoggedSet[] = Array.from({ length: targetSets }, (_, i) => ({
+        reps: prevEx?.sets[i]?.reps ?? targetReps,
         weight: prevEx?.sets[i]?.weight ?? 0,
       }));
+
       return {
-        exerciseId: ex.id,
-        exerciseName: ex.name,
-        equipment: ex.equipment,
+        exerciseId: usedSubstitute && matchedAlt ? prevEx.exerciseId : ex.id,
+        exerciseName: usedSubstitute && matchedAlt ? prevEx.exerciseName : ex.name,
+        equipment: usedSubstitute && matchedAlt ? (prevEx.equipment ?? ex.equipment) : ex.equipment,
         sets,
         notes: '',
         orderIndex: idx,
-        wasSubstitute: false,
+        wasSubstitute: !!(usedSubstitute && matchedAlt),
+        originalExerciseId: usedSubstitute && matchedAlt ? ex.id : undefined,
       };
     });
 
@@ -587,14 +599,7 @@ export default function WorkoutLogger() {
         const hasMore = allHistory.length > limit;
 
         return (
-          <div key={`${ex.exerciseId}-${exIdx}`} className={`card${isSaved ? ' card-saved' : ''}`} style={{ position: 'relative' }}>
-            {isSaved && (
-              <span className="saved-check" aria-label="tallennettu">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </span>
-            )}
+          <div key={`${ex.exerciseId}-${exIdx}`} className={`card${isSaved ? ' card-saved' : ''}`}>
             {/* Clickable exercise header - always visible */}
             <div
               className="exercise-logger-header"
@@ -602,7 +607,15 @@ export default function WorkoutLogger() {
               onClick={() => toggleExercise(exIdx)}
             >
               <div className="exercise-header-left">
-                <span className="exercise-number">{exIdx + 1}.</span>
+                {isSaved ? (
+                  <span className="exercise-number exercise-number-saved" aria-label="tallennettu">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                ) : (
+                  <span className="exercise-number">{exIdx + 1}.</span>
+                )}
                 <div style={{ minWidth: 0 }}>
                   <div className="flex gap-sm" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
                     <strong style={{ wordBreak: 'break-word' }}>{ex.exerciseName}</strong>
