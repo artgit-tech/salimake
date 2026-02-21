@@ -7,6 +7,8 @@ export interface AlternativeExercise {
   sets?: number;
   reps?: string;
   restSeconds?: number;
+  notes?: string;
+  links?: string[];
 }
 
 export interface Exercise {

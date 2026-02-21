@@ -5,6 +5,19 @@ import type { ExerciseTemplate, AlternativeExercise } from '../types';
 
 const CATEGORIES = ['Rinta', 'Selkä', 'Olkapää', 'Kädet', 'Jalat', 'Vatsa', 'Muu'];
 
+function createAltTemplate(parent: ExerciseTemplate): AlternativeExercise {
+  return {
+    id: uuid(),
+    name: '',
+    equipment: '',
+    sets: parent.sets,
+    reps: parent.reps,
+    restSeconds: parent.restSeconds,
+    notes: '',
+    links: [],
+  };
+}
+
 function createTemplate(): ExerciseTemplate {
   return {
     id: uuid(),
@@ -25,6 +38,7 @@ export default function ExerciseTemplates() {
   const [editing, setEditing] = useState<ExerciseTemplate | null>(null);
   const [filterCategory, setFilterCategory] = useState('');
   const [newLink, setNewLink] = useState('');
+  const [altLinkInputs, setAltLinkInputs] = useState<Record<number, string>>({});
 
   if (loading) return <div className="loading-spinner" />;
 
@@ -59,7 +73,7 @@ export default function ExerciseTemplates() {
       ...editing,
       alternatives: [
         ...(editing.alternatives || []),
-        { id: uuid(), name: '', equipment: '', sets: editing.sets, reps: editing.reps, restSeconds: editing.restSeconds },
+        createAltTemplate(editing),
       ],
     });
   };
@@ -256,6 +270,65 @@ export default function ExerciseTemplates() {
                     step={15}
                     onChange={(e) => updateAlternative(idx, { restSeconds: parseInt(e.target.value) || 0 })}
                   />
+                </div>
+              </div>
+              <div className="form-group mt-1" style={{ marginBottom: 0 }}>
+                <label>Muistiinpano</label>
+                <input
+                  type="text"
+                  value={alt.notes || ''}
+                  onChange={(e) => updateAlternative(idx, { notes: e.target.value })}
+                  placeholder="esim. leveä ote, kyynärpäät sivuille..."
+                />
+              </div>
+              {/* Links for alternative */}
+              <div className="mt-1" style={{ marginBottom: 0 }}>
+                <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
+                  Linkit
+                </label>
+                {(alt.links || []).map((link, linkIdx) => (
+                  <div key={linkIdx} className="flex gap-sm mb-1" style={{ alignItems: 'center' }}>
+                    <a
+                      href={link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm"
+                      style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    >
+                      {link}
+                    </a>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => {
+                        const links = (alt.links || []).filter((_, i) => i !== linkIdx);
+                        updateAlternative(idx, { links });
+                      }}
+                    >×</button>
+                  </div>
+                ))}
+                <div className="flex gap-sm">
+                  <input
+                    type="text"
+                    value={altLinkInputs[idx] || ''}
+                    onChange={(e) => setAltLinkInputs({ ...altLinkInputs, [idx]: e.target.value })}
+                    placeholder="https://youtube.com/..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (altLinkInputs[idx] || '').trim()) {
+                        updateAlternative(idx, { links: [...(alt.links || []), altLinkInputs[idx].trim()] });
+                        setAltLinkInputs({ ...altLinkInputs, [idx]: '' });
+                      }
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      if ((altLinkInputs[idx] || '').trim()) {
+                        updateAlternative(idx, { links: [...(alt.links || []), altLinkInputs[idx].trim()] });
+                        setAltLinkInputs({ ...altLinkInputs, [idx]: '' });
+                      }
+                    }}
+                  >Lisää</button>
                 </div>
               </div>
               <div className="mt-1" style={{ textAlign: 'right' }}>

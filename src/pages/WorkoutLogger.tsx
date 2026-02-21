@@ -574,9 +574,11 @@ export default function WorkoutLogger() {
         // Get the current exercise option for display of its specific parameters
         const currentOption = options.find((o) => o.name === ex.exerciseName);
 
-        // Find links from the template exercise
-        const exerciseLinks = templateEx?.links;
-        const hasTemplateInfo = !!(templateEx?.notes || (exerciseLinks && exerciseLinks.length > 0));
+        // Find notes/links for the currently selected exercise (main or alternative)
+        const currentAlt = templateEx?.alternatives?.find((a) => a.name === ex.exerciseName);
+        const exerciseNotes = currentAlt?.notes || templateEx?.notes;
+        const exerciseLinks = currentAlt?.links?.length ? currentAlt.links : templateEx?.links;
+        const hasTemplateInfo = !!(exerciseNotes || (exerciseLinks && exerciseLinks.length > 0));
 
         // Get all history for this exercise (newest first)
         const allHistory = getAllHistory(ex.exerciseName, ex.exerciseId);
@@ -649,9 +651,9 @@ export default function WorkoutLogger() {
                     </button>
                     {showTemplateInfo.has(exIdx) && (
                       <div className="mt-1">
-                        {templateEx?.notes && (
+                        {exerciseNotes && (
                           <div className="text-muted text-sm" style={{ fontStyle: 'italic' }}>
-                            {templateEx.notes}
+                            {exerciseNotes}
                           </div>
                         )}
                         {exerciseLinks && exerciseLinks.length > 0 && (

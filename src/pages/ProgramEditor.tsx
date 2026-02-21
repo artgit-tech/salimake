@@ -12,6 +12,8 @@ function createAlternative(parent?: Exercise): AlternativeExercise {
     sets: parent?.sets ?? 3,
     reps: parent?.reps ?? '10',
     restSeconds: parent?.restSeconds ?? 90,
+    notes: '',
+    links: [],
   };
 }
 
@@ -626,67 +628,149 @@ function ExerciseEditor({
               Vaihtoehtoiset liikkeet
             </label>
             {(ex.alternatives || []).map((alt, altIdx) => (
-              <div key={alt.id} className="alt-exercise-card mb-1">
-                <div className="exercise-fields-2col">
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Nimi</label>
-                    <input
-                      type="text"
-                      value={alt.name}
-                      onChange={(e) => onUpdateAlternative(altIdx, { name: e.target.value })}
-                      placeholder="esim. Tasapenkki"
-                    />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Väline</label>
-                    <input
-                      type="text"
-                      value={alt.equipment || ''}
-                      onChange={(e) => onUpdateAlternative(altIdx, { equipment: e.target.value })}
-                      placeholder="esim. vapaapenkki"
-                    />
-                  </div>
-                </div>
-                <div className="exercise-fields-4col mt-1">
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Sarjat</label>
-                    <input
-                      type="number"
-                      value={alt.sets ?? ex.sets}
-                      min={1}
-                      onChange={(e) => onUpdateAlternative(altIdx, { sets: parseInt(e.target.value) || 1 })}
-                    />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Toistot</label>
-                    <input
-                      type="text"
-                      value={alt.reps ?? ex.reps}
-                      onChange={(e) => onUpdateAlternative(altIdx, { reps: e.target.value })}
-                      placeholder="8-12"
-                    />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Lepo (s)</label>
-                    <input
-                      type="number"
-                      value={alt.restSeconds ?? ex.restSeconds}
-                      min={0}
-                      step={15}
-                      onChange={(e) => onUpdateAlternative(altIdx, { restSeconds: parseInt(e.target.value) || 0 })}
-                    />
-                  </div>
-                </div>
-                <div className="mt-1" style={{ textAlign: 'right' }}>
-                  <button className="btn btn-danger btn-sm" onClick={() => onRemoveAlternative(altIdx)}>Poista</button>
-                </div>
-              </div>
+              <AlternativeEditor
+                key={alt.id}
+                alt={alt}
+                altIdx={altIdx}
+                parentEx={ex}
+                onUpdate={onUpdateAlternative}
+                onRemove={onRemoveAlternative}
+              />
             ))}
             <button className="btn btn-ghost btn-sm" onClick={onAddAlternative}>
               + Lisää vaihtoehto
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// --- Alternative exercise editor with own link state ---
+
+function AlternativeEditor({
+  alt,
+  altIdx,
+  parentEx,
+  onUpdate,
+  onRemove,
+}: {
+  alt: AlternativeExercise;
+  altIdx: number;
+  parentEx: Exercise;
+  onUpdate: (altIdx: number, partial: Partial<AlternativeExercise>) => void;
+  onRemove: (altIdx: number) => void;
+}) {
+  const [altLinkInput, setAltLinkInput] = useState('');
+
+  return (
+    <div className="alt-exercise-card mb-1">
+      <div className="exercise-fields-2col">
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Nimi</label>
+          <input
+            type="text"
+            value={alt.name}
+            onChange={(e) => onUpdate(altIdx, { name: e.target.value })}
+            placeholder="esim. Tasapenkki"
+          />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Väline</label>
+          <input
+            type="text"
+            value={alt.equipment || ''}
+            onChange={(e) => onUpdate(altIdx, { equipment: e.target.value })}
+            placeholder="esim. vapaapenkki"
+          />
+        </div>
+      </div>
+      <div className="exercise-fields-4col mt-1">
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Sarjat</label>
+          <input
+            type="number"
+            value={alt.sets ?? parentEx.sets}
+            min={1}
+            onChange={(e) => onUpdate(altIdx, { sets: parseInt(e.target.value) || 1 })}
+          />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Toistot</label>
+          <input
+            type="text"
+            value={alt.reps ?? parentEx.reps}
+            onChange={(e) => onUpdate(altIdx, { reps: e.target.value })}
+            placeholder="8-12"
+          />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Lepo (s)</label>
+          <input
+            type="number"
+            value={alt.restSeconds ?? parentEx.restSeconds}
+            min={0}
+            step={15}
+            onChange={(e) => onUpdate(altIdx, { restSeconds: parseInt(e.target.value) || 0 })}
+          />
+        </div>
+      </div>
+      <div className="form-group mt-1" style={{ marginBottom: 0 }}>
+        <label>Muistiinpano</label>
+        <input
+          type="text"
+          value={alt.notes || ''}
+          onChange={(e) => onUpdate(altIdx, { notes: e.target.value })}
+          placeholder="esim. käsien leveys, suoritusvinkit..."
+        />
+      </div>
+      {/* Links for alternative */}
+      <div className="mt-1" style={{ marginBottom: 0 }}>
+        <label className="text-sm text-muted" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
+          Linkit
+        </label>
+        {(alt.links || []).map((link, linkIdx) => (
+          <div key={linkIdx} className="flex gap-sm mb-1" style={{ alignItems: 'center' }}>
+            <a href={link} target="_blank" rel="noopener noreferrer" className="text-sm link-truncate">
+              {link}
+            </a>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={() => {
+                const links = (alt.links || []).filter((_, i) => i !== linkIdx);
+                onUpdate(altIdx, { links });
+              }}
+            >×</button>
+          </div>
+        ))}
+        <div className="flex gap-sm">
+          <input
+            type="text"
+            value={altLinkInput}
+            onChange={(e) => setAltLinkInput(e.target.value)}
+            placeholder="https://youtube.com/..."
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && altLinkInput.trim()) {
+                onUpdate(altIdx, { links: [...(alt.links || []), altLinkInput.trim()] });
+                setAltLinkInput('');
+              }
+            }}
+            style={{ flex: 1 }}
+          />
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              if (altLinkInput.trim()) {
+                onUpdate(altIdx, { links: [...(alt.links || []), altLinkInput.trim()] });
+                setAltLinkInput('');
+              }
+            }}
+          >Lisää</button>
+        </div>
+      </div>
+      <div className="mt-1" style={{ textAlign: 'right' }}>
+        <button className="btn btn-danger btn-sm" onClick={() => onRemove(altIdx)}>Poista</button>
       </div>
     </div>
   );
