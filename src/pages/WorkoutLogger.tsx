@@ -887,12 +887,12 @@ export default function WorkoutLogger() {
                   {/* Alternative exercise selector - inside logging section */}
                   {hasAlternatives && (
                     <div className="exercise-select-wrapper mb-1">
-                      <svg className="exercise-select-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="16 3 21 3 21 8" />
-                        <line x1="4" y1="20" x2="21" y2="3" />
-                        <polyline points="21 16 21 21 16 21" />
-                        <line x1="15" y1="15" x2="21" y2="21" />
-                        <line x1="4" y1="4" x2="9" y2="9" />
+                      <svg className="exercise-select-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="2" y1="12" x2="6" y2="12" />
+                        <line x1="18" y1="12" x2="22" y2="12" />
+                        <rect x="6" y="7" width="3" height="10" rx="1" />
+                        <rect x="15" y="7" width="3" height="10" rx="1" />
+                        <line x1="9" y1="12" x2="15" y2="12" />
                       </svg>
                       <select
                         className="exercise-select"
@@ -970,8 +970,8 @@ export default function WorkoutLogger() {
                     ))}
                   </div>
 
-                  <button className="btn btn-ghost btn-sm mt-1" onClick={() => addSet(exIdx)}>
-                    + Sarja
+                  <button className="add-set-round" onClick={() => addSet(exIdx)} title="Lisää sarja">
+                    +
                   </button>
 
                   {/* Per-exercise notes */}

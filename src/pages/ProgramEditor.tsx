@@ -113,7 +113,10 @@ export default function ProgramEditor() {
   const existing = id ? programs.find((p) => p.id === id) : undefined;
 
   const [program, setProgram] = useState<Program>(existing ?? createProgram());
-  const [collapsedExercises, setCollapsedExercises] = useState<Set<string>>(new Set());
+  const [collapsedExercises, setCollapsedExercises] = useState<Set<string>>(() => {
+    const initial = existing ?? createProgram();
+    return new Set(initial.days.flatMap((d) => d.exercises.map((e) => e.id)));
+  });
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => {
     const initial = existing ?? createProgram();
     return new Set(initial.days.map((d) => d.id));
@@ -166,25 +169,29 @@ export default function ProgramEditor() {
   };
 
   const addExercise = (dayIdx: number) => {
+    const newEx = createExercise();
     setProgram((prev) => {
       const days = [...prev.days];
       days[dayIdx] = {
         ...days[dayIdx],
-        exercises: [...days[dayIdx].exercises, createExercise()],
+        exercises: [...days[dayIdx].exercises, newEx],
       };
       return { ...prev, days };
     });
+    setCollapsedExercises((prev) => new Set(prev).add(newEx.id));
   };
 
   const addExerciseFromTemplate = (dayIdx: number, template: ExerciseTemplate) => {
+    const newEx = exerciseFromTemplate(template);
     setProgram((prev) => {
       const days = [...prev.days];
       days[dayIdx] = {
         ...days[dayIdx],
-        exercises: [...days[dayIdx].exercises, exerciseFromTemplate(template)],
+        exercises: [...days[dayIdx].exercises, newEx],
       };
       return { ...prev, days };
     });
+    setCollapsedExercises((prev) => new Set(prev).add(newEx.id));
     setShowTemplatePicker(null);
     setTemplateFilter('');
   };
@@ -303,10 +310,15 @@ export default function ProgramEditor() {
 
   const toggleCollapsed = (exerciseId: string) => {
     setCollapsedExercises((prev) => {
-      const next = new Set(prev);
-      if (next.has(exerciseId)) next.delete(exerciseId);
-      else next.add(exerciseId);
-      return next;
+      if (prev.has(exerciseId)) {
+        // Opening this exercise — collapse all others, open only this one
+        const allIds = new Set(program.days.flatMap((d) => d.exercises.map((e) => e.id)));
+        allIds.delete(exerciseId);
+        return allIds;
+      } else {
+        // Closing this exercise
+        return new Set(prev).add(exerciseId);
+      }
     });
   };
 

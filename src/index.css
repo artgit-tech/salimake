@@ -1026,6 +1026,39 @@ th {
   background: rgba(99, 102, 241, 0.15);
 }
 
+/* Round add-set button */
+.add-set-round {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  font-weight: 400;
+  cursor: pointer;
+  margin: 0.5rem auto 0;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.add-set-round:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.logging-section .add-set-round {
+  border-color: var(--indigo-border);
+}
+
+.logging-section .add-set-round:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
 
 /* Compact date input for logging section */
 .date-input-sm {
@@ -1037,6 +1070,7 @@ th {
   font-size: 0.75rem;
   width: auto;
   max-width: 8.5rem;
+  color-scheme: dark;
 }
 
 .date-input-sm:focus {
@@ -1053,10 +1087,10 @@ th {
 
 /* Recent history section */
 .recent-history {
-  padding: 0;
-  border-top: 1px solid var(--border);
+  background: #252836;
+  padding: 1rem;
+  border-radius: var(--radius);
   margin-top: 0.75rem;
-  padding-top: 0.5rem;
 }
 
 /* Scrollable history list when many results loaded */
