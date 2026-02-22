@@ -858,12 +858,12 @@ function ExerciseEditor({
                       </div>
 
                       {/* Alt bottom actions */}
-                      <div className="flex-between" style={{ marginTop: '0.5rem' }}>
-                        <button className="btn btn-danger btn-sm" onClick={() => { onRemoveAlternative(altIdx); closeAltEdit(); }}>
-                          Poista
+                      <div className="alt-edit-actions">
+                        <button className="btn btn-primary" onClick={closeAltEdit}>
+                          Tallenna
                         </button>
-                        <button className="btn btn-ghost btn-sm" onClick={closeAltEdit}>
-                          Valmis
+                        <button className="btn btn-danger" onClick={() => { onRemoveAlternative(altIdx); closeAltEdit(); }}>
+                          Poista
                         </button>
                       </div>
                     </div>

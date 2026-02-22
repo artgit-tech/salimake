@@ -585,10 +585,9 @@ th {
   border-top: 1px solid var(--border);
 }
 
-/* Exercise name input - primary visual hierarchy */
+/* Exercise name input */
 .exercise-name-input {
-  font-size: 1rem !important;
-  font-weight: 600;
+  /* same size as other inputs */
 }
 
 /* Compact alternative item - one line */
@@ -623,6 +622,20 @@ th {
   background: var(--bg-card);
   border: 1px solid var(--primary);
   border-radius: var(--radius-sm);
+}
+
+/* Alternative edit bottom actions */
+.alt-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.alt-edit-actions .btn {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.85rem;
 }
 
 /* Alternative section title - indigo and larger */
