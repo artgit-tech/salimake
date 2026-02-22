@@ -886,20 +886,29 @@ export default function WorkoutLogger() {
 
                   {/* Alternative exercise selector - inside logging section */}
                   {hasAlternatives && (
-                    <select
-                      className="exercise-select mb-1"
-                      value={ex.exerciseName}
-                      onChange={(e) => {
-                        const option = options.find((o) => o.name === e.target.value);
-                        if (option) switchExercise(exIdx, option);
-                      }}
-                    >
-                      {options.map((opt) => (
-                        <option key={opt.id} value={opt.name}>
-                          {opt.name}{opt.equipment ? ` (${opt.equipment})` : ''}{opt.isAlternative ? ' — vaihtoehto' : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="exercise-select-wrapper mb-1">
+                      <svg className="exercise-select-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="16 3 21 3 21 8" />
+                        <line x1="4" y1="20" x2="21" y2="3" />
+                        <polyline points="21 16 21 21 16 21" />
+                        <line x1="15" y1="15" x2="21" y2="21" />
+                        <line x1="4" y1="4" x2="9" y2="9" />
+                      </svg>
+                      <select
+                        className="exercise-select"
+                        value={ex.exerciseName}
+                        onChange={(e) => {
+                          const option = options.find((o) => o.name === e.target.value);
+                          if (option) switchExercise(exIdx, option);
+                        }}
+                      >
+                        {options.map((opt) => (
+                          <option key={opt.id} value={opt.name}>
+                            {opt.name}{opt.equipment ? ` (${opt.equipment})` : ''}{opt.isAlternative ? ' — vaihtoehto' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   )}
 
                   <div className="set-list">
