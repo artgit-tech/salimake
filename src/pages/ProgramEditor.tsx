@@ -114,6 +114,10 @@ export default function ProgramEditor() {
 
   const [program, setProgram] = useState<Program>(existing ?? createProgram());
   const [collapsedExercises, setCollapsedExercises] = useState<Set<string>>(new Set());
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => {
+    const initial = existing ?? createProgram();
+    return new Set(initial.days.map((d) => d.id));
+  });
   const [showTemplatePicker, setShowTemplatePicker] = useState<{ dayIdx: number } | null>(null);
   const [templateFilter, setTemplateFilter] = useState('');
 
@@ -306,6 +310,15 @@ export default function ProgramEditor() {
     });
   };
 
+  const toggleDayCollapsed = (dayId: string) => {
+    setCollapsedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dayId)) next.delete(dayId);
+      else next.add(dayId);
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     if (!program.name.trim()) {
       alert('Anna ohjelmalle nimi');
@@ -362,96 +375,129 @@ export default function ProgramEditor() {
         </div>
       </div>
 
-      {program.days.map((day, dayIdx) => (
-        <div key={day.id} className="card">
-          <div className="flex-between mb-1">
-            <h3>Treenipäivä {dayIdx + 1}</h3>
-            {program.days.length > 1 && (
-              <button
-                className="btn btn-danger btn-sm"
-                onClick={() => removeDay(dayIdx)}
-              >
-                Poista päivä
-              </button>
+      {program.days.map((day, dayIdx) => {
+        const isDayCollapsed = collapsedDays.has(day.id);
+        const exerciseSummary = day.exercises
+          .map((e) => e.name || 'Nimetön')
+          .join(', ');
+
+        return (
+          <div key={day.id} className="card">
+            {/* Day accordion header */}
+            <div
+              className="day-accordion-header"
+              onClick={() => toggleDayCollapsed(day.id)}
+            >
+              <div className="day-accordion-left">
+                <IconChevron
+                  size={16}
+                  className={`accordion-chevron${!isDayCollapsed ? ' accordion-chevron-open' : ''}`}
+                />
+                <div>
+                  <h3 style={{ marginBottom: 0 }}>
+                    {day.name || `Treenipäivä ${dayIdx + 1}`}
+                  </h3>
+                  {isDayCollapsed && (
+                    <span className="text-muted text-sm">
+                      {day.exercises.length} liike{day.exercises.length !== 1 ? 'ttä' : ''}
+                      {exerciseSummary && ` — ${exerciseSummary}`}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="day-accordion-right" onClick={(e) => e.stopPropagation()}>
+                {program.days.length > 1 && (
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => removeDay(dayIdx)}
+                  >
+                    Poista päivä
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {!isDayCollapsed && (
+              <div className="accordion-content">
+                <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                  <label>Päivän nimi</label>
+                  <input
+                    type="text"
+                    value={day.name}
+                    onChange={(e) => updateDay(dayIdx, { name: e.target.value })}
+                    placeholder="esim. Rintapäivä / Selkäpäivä / Jalkapäivä"
+                  />
+                </div>
+
+                {day.exercises.map((ex, exIdx) => (
+                  <ExerciseEditor
+                    key={ex.id}
+                    ex={ex}
+                    exIdx={exIdx}
+                    dayIdx={dayIdx}
+                    isCollapsed={collapsedExercises.has(ex.id)}
+                    onToggleCollapsed={() => toggleCollapsed(ex.id)}
+                    onUpdate={(partial) => updateExercise(dayIdx, exIdx, partial)}
+                    onRemove={() => removeExercise(dayIdx, exIdx)}
+                    onDragStart={() => handleDragStart(dayIdx, exIdx)}
+                    onDragEnter={() => handleDragEnter(dayIdx, exIdx)}
+                    onDragEnd={handleDragEnd}
+                    onAddAlternative={() => addAlternative(dayIdx, exIdx)}
+                    onUpdateAlternative={(altIdx, partial) => updateAlternative(dayIdx, exIdx, altIdx, partial)}
+                    onRemoveAlternative={(altIdx) => removeAlternative(dayIdx, exIdx, altIdx)}
+                    onAddLink={(url) => addLink(dayIdx, exIdx, url)}
+                    onRemoveLink={(linkIdx) => removeLink(dayIdx, exIdx, linkIdx)}
+                    onSaveToLibrary={() => {
+                      const template = {
+                        id: uuid(),
+                        name: ex.name,
+                        equipment: ex.equipment || undefined,
+                        sets: ex.sets,
+                        reps: ex.reps,
+                        restSeconds: ex.restSeconds,
+                        notes: ex.notes || undefined,
+                        links: ex.links?.length ? [...ex.links] : undefined,
+                        alternatives: ex.alternatives?.length
+                          ? ex.alternatives.map((a) => ({ ...a }))
+                          : undefined,
+                      };
+                      saveExerciseTemplate(template).then(() => {
+                        alert(`"${ex.name}" tallennettu kirjastoon!`);
+                      }).catch(() => {
+                        alert('Tallentaminen kirjastoon epäonnistui.');
+                      });
+                    }}
+                    isDragging={draggingEx?.dayIdx === dayIdx && draggingEx?.exIdx === exIdx}
+                    isDragOver={
+                      dragOverEx?.dayIdx === dayIdx &&
+                      dragOverEx?.exIdx === exIdx &&
+                      !(draggingEx?.dayIdx === dayIdx && draggingEx?.exIdx === exIdx)
+                    }
+                    onMoveUp={() => moveExercise(dayIdx, exIdx, 'up')}
+                    onMoveDown={() => moveExercise(dayIdx, exIdx, 'down')}
+                    canMoveUp={exIdx > 0}
+                    canMoveDown={exIdx < day.exercises.length - 1}
+                  />
+                ))}
+
+                <div className="flex gap-sm flex-wrap">
+                  <button className="btn btn-ghost btn-sm" onClick={() => addExercise(dayIdx)}>
+                    + Tyhjä liike
+                  </button>
+                  {exerciseTemplates.length > 0 && (
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setShowTemplatePicker({ dayIdx })}
+                    >
+                      + Lisää kirjastosta
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
-
-          <div className="form-group">
-            <label>Päivän nimi</label>
-            <input
-              type="text"
-              value={day.name}
-              onChange={(e) => updateDay(dayIdx, { name: e.target.value })}
-              placeholder="esim. Rintapäivä / Selkäpäivä / Jalkapäivä"
-            />
-          </div>
-
-          {day.exercises.map((ex, exIdx) => (
-            <ExerciseEditor
-              key={ex.id}
-              ex={ex}
-              exIdx={exIdx}
-              dayIdx={dayIdx}
-              isCollapsed={collapsedExercises.has(ex.id)}
-              onToggleCollapsed={() => toggleCollapsed(ex.id)}
-              onUpdate={(partial) => updateExercise(dayIdx, exIdx, partial)}
-              onRemove={() => removeExercise(dayIdx, exIdx)}
-              onDragStart={() => handleDragStart(dayIdx, exIdx)}
-              onDragEnter={() => handleDragEnter(dayIdx, exIdx)}
-              onDragEnd={handleDragEnd}
-              onAddAlternative={() => addAlternative(dayIdx, exIdx)}
-              onUpdateAlternative={(altIdx, partial) => updateAlternative(dayIdx, exIdx, altIdx, partial)}
-              onRemoveAlternative={(altIdx) => removeAlternative(dayIdx, exIdx, altIdx)}
-              onAddLink={(url) => addLink(dayIdx, exIdx, url)}
-              onRemoveLink={(linkIdx) => removeLink(dayIdx, exIdx, linkIdx)}
-              onSaveToLibrary={() => {
-                const template = {
-                  id: uuid(),
-                  name: ex.name,
-                  equipment: ex.equipment || undefined,
-                  sets: ex.sets,
-                  reps: ex.reps,
-                  restSeconds: ex.restSeconds,
-                  notes: ex.notes || undefined,
-                  links: ex.links?.length ? [...ex.links] : undefined,
-                  alternatives: ex.alternatives?.length
-                    ? ex.alternatives.map((a) => ({ ...a }))
-                    : undefined,
-                };
-                saveExerciseTemplate(template).then(() => {
-                  alert(`"${ex.name}" tallennettu kirjastoon!`);
-                }).catch(() => {
-                  alert('Tallentaminen kirjastoon epäonnistui.');
-                });
-              }}
-              isDragging={draggingEx?.dayIdx === dayIdx && draggingEx?.exIdx === exIdx}
-              isDragOver={
-                dragOverEx?.dayIdx === dayIdx &&
-                dragOverEx?.exIdx === exIdx &&
-                !(draggingEx?.dayIdx === dayIdx && draggingEx?.exIdx === exIdx)
-              }
-              onMoveUp={() => moveExercise(dayIdx, exIdx, 'up')}
-              onMoveDown={() => moveExercise(dayIdx, exIdx, 'down')}
-              canMoveUp={exIdx > 0}
-              canMoveDown={exIdx < day.exercises.length - 1}
-            />
-          ))}
-
-          <div className="flex gap-sm flex-wrap">
-            <button className="btn btn-ghost btn-sm" onClick={() => addExercise(dayIdx)}>
-              + Tyhjä liike
-            </button>
-            {exerciseTemplates.length > 0 && (
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setShowTemplatePicker({ dayIdx })}
-              >
-                + Lisää kirjastosta
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* Template picker modal */}
       {showTemplatePicker && (
