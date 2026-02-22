@@ -632,12 +632,6 @@ export default function WorkoutLogger() {
                 <span className="badge">
                   {currentOption?.sets ?? templateEx?.sets ?? '?'}×{currentOption?.reps ?? templateEx?.reps ?? '?'}
                 </span>
-                {/* Weight summary when collapsed */}
-                {!isExpanded && ex.sets.some((s) => s.weight > 0) && (
-                  <span className="text-muted text-sm" style={{ whiteSpace: 'nowrap' }}>
-                    {ex.sets.filter((s) => s.weight > 0).map((s) => `${s.weight}kg`).join('/')}
-                  </span>
-                )}
                 <svg
                   className={`accordion-chevron${isExpanded ? ' accordion-chevron-open' : ''}`}
                   width="18"
@@ -657,41 +651,72 @@ export default function WorkoutLogger() {
             {/* Expanded content */}
             {isExpanded && (
               <div className="accordion-content">
-                {/* Template notes + links - directly below title */}
-                {hasTemplateInfo && (
-                  <div className="mt-1">
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => toggleTemplateInfo(exIdx)}
-                    >
-                      {showTemplateInfo.has(exIdx) ? '▲ Piilota ohjeet' : '▼ Ohjeet ja linkit'}
-                    </button>
-                    {showTemplateInfo.has(exIdx) && (
-                      <div className="mt-1">
-                        {exerciseNotes && (
-                          <div className="text-muted text-sm" style={{ fontStyle: 'italic' }}>
-                            {exerciseNotes}
-                          </div>
-                        )}
-                        {exerciseLinks && exerciseLinks.length > 0 && (
-                          <div className="exercise-links mt-1">
-                            {exerciseLinks.map((link, idx) => (
-                              <a
-                                key={idx}
-                                href={link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="exercise-link-chip"
-                              >
-                                {getLinkLabel(link)}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* Template notes + links - accordion style */}
+                {hasTemplateInfo && (() => {
+                  const notesCount = (exerciseNotes ? 1 : 0) + (exerciseLinks?.length ?? 0);
+                  return (
+                    <div className="section-divider">
+                      <button
+                        className="notes-accordion-toggle"
+                        onClick={() => toggleTemplateInfo(exIdx)}
+                      >
+                        <svg
+                          className={`accordion-chevron${showTemplateInfo.has(exIdx) ? ' accordion-chevron-open' : ''}`}
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                        Lisäohjeet
+                        {notesCount > 0 && <span className="badge" style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem' }}>{notesCount}</span>}
+                      </button>
+                      {showTemplateInfo.has(exIdx) && (
+                        <div className="accordion-content" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {exerciseNotes && (
+                            <div className="field-with-icon">
+                              <span className="field-icon">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M17 3a2.83 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                  <path d="m15 5 4 4" />
+                                </svg>
+                              </span>
+                              <span className="text-muted text-sm" style={{ fontStyle: 'italic' }}>{exerciseNotes}</span>
+                            </div>
+                          )}
+                          {exerciseLinks && exerciseLinks.length > 0 && (
+                            <div className="field-with-icon" style={{ alignItems: 'flex-start' }}>
+                              <span className="field-icon" style={{ marginTop: '0.15rem' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                </svg>
+                              </span>
+                              <div className="exercise-links">
+                                {exerciseLinks.map((link, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="exercise-link-chip"
+                                  >
+                                    {getLinkLabel(link)}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Recent history - newest first, expandable */}
                 {allHistory.length > 0 && !editingHistory.has(exIdx) && (
@@ -712,7 +737,7 @@ export default function WorkoutLogger() {
                             (s) => s.weight === sets[0].weight && s.reps === sets[0].reps
                           );
                           if (allSame) {
-                            return `${sets.length}×${sets[0].reps} @ ${sets[0].weight} kg`;
+                            return `${sets.length}×${sets[0].reps} / ${sets[0].weight} kg`;
                           }
                           return sets.map((s) => `${s.weight}×${s.reps}`).join(' / ');
                         };
@@ -830,7 +855,7 @@ export default function WorkoutLogger() {
                 <div className="logging-section mt-1">
                   <div className="logging-section-header">
                     {editingHistory.has(exIdx) ? (
-                      <div className="flex-between">
+                      <div className="flex gap-sm" style={{ alignItems: 'center' }}>
                         <span className="text-sm" style={{ fontWeight: 600 }}>Muokataan:</span>
                         <input
                           type="date"
@@ -847,7 +872,7 @@ export default function WorkoutLogger() {
                         />
                       </div>
                     ) : (
-                      <div className="flex-between">
+                      <div className="flex gap-sm" style={{ alignItems: 'center' }}>
                         <span className="text-sm text-muted" style={{ fontWeight: 500 }}>Tänään</span>
                         <input
                           type="date"
@@ -953,7 +978,7 @@ export default function WorkoutLogger() {
 
                   {/* Action buttons */}
                   {editingHistory.has(exIdx) ? (
-                    <div className="flex gap-sm mt-1" style={{ flexWrap: 'wrap' }}>
+                    <div className="flex gap-sm" style={{ flexWrap: 'wrap', margin: '0.75rem 0' }}>
                       <button
                         className="btn btn-primary btn-sm"
                         onClick={() => saveEditedHistory(exIdx)}
@@ -978,7 +1003,7 @@ export default function WorkoutLogger() {
                       </button>
                     </div>
                   ) : (
-                    <div className="flex gap-sm mt-1">
+                    <div className="flex gap-sm" style={{ margin: '0.75rem 0' }}>
                       <button
                         className="btn btn-primary btn-sm"
                         onClick={() => saveExerciseIndividually(exIdx, false)}
